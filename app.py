@@ -4,7 +4,6 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'gizli-anahtar-123'
-# Bağlantı loglarını terminalde görebilmek ve kararlılığı artırmak için güncelledik
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
 
 oyun_odasi = {
@@ -12,6 +11,16 @@ oyun_odasi = {
     "sira": 1,
     "durum": "SAYI_GIRIS"
 }
+
+# Sayının oyun kurallarına uygun olup olmadığını denetleyen fonksiyon
+def sayi_gecerli_mi(sayi):
+    if len(sayi) != 4 or not sayi.isdigit():
+        return False
+    if sayi[0] == '0': # 0 ile başlayamaz
+        return False
+    if len(set(sayi)) != 4: # Rakamları farklı olmalı
+        return False
+    return True
 
 def ipucu_hesapla(tahmin, gizli):
     artilar = 0
@@ -68,9 +77,15 @@ def handle_disconnect():
 def handle_sayi(data):
     sid = request.sid
     oyuncular = oyun_odasi["oyuncular"]
+    sayi = data.get("sayi", "")
     
+    # Sunucu tarafında güvenlik kontrolü
+    if not sayi_gecerli_mi(sayi):
+        emit('hata_mesaji', {"mesaj_tr": "Geçersiz sayı! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid number! Cannot start with 0 and digits must be unique."}, room=sid)
+        return
+
     if sid in oyuncular:
-        oyuncular[sid]["sayi"] = data["sayi"]
+        oyuncular[sid]["sayi"] = sayi
         
         hazir = len(oyuncular) == 2 and all(p["sayi"] is not None for p in oyuncular.values())
         if hazir:
@@ -88,13 +103,18 @@ def handle_sayi(data):
 def handle_tahmin(data):
     sid = request.sid
     oyuncular = oyun_odasi["oyuncular"]
+    tahmin = data.get("tahmin", "")
+    
+    # Tahmin için de aynı kurallar geçerli
+    if not sayi_gecerli_mi(tahmin):
+        emit('hata_mesaji', {"mesaj_tr": "Geçersiz tahmin! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid guess! Cannot start with 0 and digits must be unique."}, room=sid)
+        return
     
     aktif_oyuncu = oyuncular.get(sid)
     if not aktif_oyuncu or aktif_oyuncu["id"] != oyun_odasi["sira"]:
         return
 
     rakip_oyuncu = next(p for p in oyuncular.values() if p["id"] != aktif_oyuncu["id"])
-    tahmin = data["tahmin"]
     
     sonuc = ipucu_hesapla(tahmin, rakip_oyuncu["sayi"])
     aktif_oyuncu["tahminler"].append({"tahmin": tahmin, "sonuc": sonuc})
@@ -112,8 +132,5 @@ def handle_tahmin(data):
         }, broadcast=True)
 
 if __name__ == '__main__':
-    # Render portu otomatik atar, bulamazsa 5001 kullanır
     port = int(os.environ.get("PORT", 5001))
-    
-    # allow_unsafe_werkzeug=True ekleyerek Render üzerinde ham sunucunun çalışmasına izin veriyoruz
     socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
