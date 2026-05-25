@@ -5,23 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sayı Bulmaca - Multiplayer</title>
     <link rel="stylesheet" href="/static/style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      /* Dil butonu için küçük bir estetik ekleme */
+      .lang-switcher {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+      .lang-btn {
+        background: #29292e;
+        color: #7c7c8a;
+        border: 1px solid #444;
+        padding: 4px 10px;
+        font-size: 12px;
+        border-radius: 4px;
+        width: auto;
+        cursor: pointer;
+      }
+      .lang-btn.active {
+        background: #8257e5;
+        color: white;
+        border-color: #8257e5;
+      }
+    </style>
   </head>
   <body>
     <div class="game-container">
+      <div class="lang-switcher">
+        <button class="lang-btn active" id="btn-tr" onclick="setLanguage('tr')">
+          TR
+        </button>
+        <button class="lang-btn" id="btn-en" onclick="setLanguage('en')">
+          EN
+        </button>
+      </div>
+
       <header>
-        <h1>Sayı Bulmaca</h1>
+        <h1 id="txt-title">Sayı Bulmaca</h1>
         <div id="role-badge" class="badge">Bağlanılıyor...</div>
         <div id="turn-badge" class="badge hide">Sıra Bekleniyor...</div>
       </header>
 
       <div id="my-number-panel" class="panel hide">
-        <h3>Senin Gizli Sayın: <span id="secret-display">****</span></h3>
+        <h3 id="txt-my-secret">
+          Senin Gizli Sayın: <span id="secret-display">****</span>
+        </h3>
       </div>
 
       <div id="setup-screen" class="screen">
-        <h2>4 Haneli Gizli Sayını Belirle</h2>
-        <p>Rakamları birbirinden farklı olmalıdır.</p>
+        <h2 id="txt-setup-title">4 Haneli Gizli Sayını Belirle</h2>
+        <p id="txt-setup-desc">Rakamları birbirinden farklı olmalıdır.</p>
         <input
           type="text"
           id="secret-input"
@@ -48,11 +83,11 @@
 
         <div class="history-container">
           <div class="history-block">
-            <h3>Oyuncu 1 Tahminleri</h3>
+            <h3 id="txt-p1-history">Oyuncu 1 Tahminleri</h3>
             <div id="p1-history" class="history-list"></div>
           </div>
           <div class="history-block">
-            <h3>Oyuncu 2 Tahminleri</h3>
+            <h3 id="txt-p2-history">Oyuncu 2 Tahminleri</h3>
             <div id="p2-history" class="history-list"></div>
           </div>
         </div>
@@ -61,36 +96,136 @@
       <div id="win-screen" class="screen hide">
         <div class="win-animation">🎉</div>
         <h2 id="win-message">Tebrikler Kazandınız!</h2>
-        <button onclick="location.reload()">Yeniden Oyna</button>
+        <button id="btn-restart" onclick="location.reload()">
+          Yeniden Oyna
+        </button>
       </div>
     </div>
 
     <script>
-      // Sunucuyla tam senkronizasyon için boş bırakıyoruz, otomatik eşleşecek
       const socket = io(window.location.origin, {
         transports: ["websocket", "polling"],
       });
 
       let myId = null;
       let myTurn = false;
+      let currentLang = "tr"; // Varsayılan dil Türkçe
 
-      socket.on("connect", () => {
-        console.log("Sunucuya başarıyla bağlanıldı!");
-      });
+      // DİL SÖZLÜĞÜ (Çeviriler)
+      const translations = {
+        tr: {
+          title: "Sayı Bulmaca",
+          connecting: "Bağlanılıyor...",
+          waitingTurn: "Sıra Bekleniyor...",
+          playerInfo: "Sen: Oyuncu ",
+          mySecret: "Senin Gizli Sayın: ",
+          setupTitle: "4 Haneli Gizli Sayını Belirle",
+          setupDesc: "Rakamları birbirinden farklı olmalıdır.",
+          lockBtn: "Sayımı Kilitle",
+          guessPlaceholder: "Tahminin nedir?",
+          guessBtn: "Tahmin Et",
+          p1Hist: "Oyuncu 1 Tahminleri",
+          p2Hist: "Oyuncu 2 Tahminleri",
+          waitingOpponent:
+            "Sayın kilitlendi. Rakibin sayısını seçmesi bekleniyor...",
+          yourTurn: "Senin Sıran!",
+          opponentTurn: "Rakibin Sırası...",
+          winMsg: "🏆 OYUNU KAZANDINIZ!",
+          loseMsg: "❌ RAKİBİNİZ SAYINIZI BULDU!",
+          restartBtn: "Yeniden Oyna",
+          alertRoomFull: "Oda dolu!",
+          alertFourDigits: "4 haneli bir sayı girin!",
+          alertDisconnect: "Bir oyuncu odadan ayrıldı, oyun sıfırlanıyor.",
+        },
+        en: {
+          title: "Number Puzzle",
+          connecting: "Connecting...",
+          waitingTurn: "Waiting for turn...",
+          playerInfo: "You: Player ",
+          mySecret: "Your Secret Number: ",
+          setupTitle: "Determine Your 4-Digit Secret Number",
+          setupDesc: "Digits must be unique.",
+          lockBtn: "Lock My Number",
+          guessPlaceholder: "What's your guess?",
+          guessBtn: "Guess",
+          p1Hist: "Player 1 Guesses",
+          p2Hist: "Player 2 Guesses",
+          waitingOpponent:
+            "Your number is locked. Waiting for opponent to choose...",
+          yourTurn: "Your Turn!",
+          opponentTurn: "Opponent's Turn...",
+          winMsg: "🏆 YOU WON THE GAME!",
+          loseMsg: "❌ OPPONENT FOUND YOUR NUMBER!",
+          restartBtn: "Play Again",
+          alertRoomFull: "Room is full!",
+          alertFourDigits: "Please enter a 4-digit number!",
+          alertDisconnect: "A player disconnected, restarting the game.",
+        },
+      };
+
+      // DİL DEĞİŞTİRME FONKSİYONU
+      function setLanguage(lang) {
+        currentLang = lang;
+
+        // Buton aktiflik sınıflarını güncelle
+        document
+          .getElementById("btn-tr")
+          .classList.toggle("active", lang === "tr");
+        document
+          .getElementById("btn-en")
+          .classList.toggle("active", lang === "en");
+
+        // Statik metinleri güncelle
+        document.getElementById("txt-title").innerText =
+          translations[lang].title;
+        document.getElementById("txt-setup-title").innerText =
+          translations[lang].setupTitle;
+        document.getElementById("txt-setup-desc").innerText =
+          translations[lang].setupDesc;
+        document.getElementById("send-secret-btn").innerText =
+          translations[lang].lockBtn;
+        document.getElementById("guess-input").placeholder =
+          translations[lang].guessPlaceholder;
+        document.getElementById("send-guess-btn").innerText =
+          translations[lang].guessBtn;
+        document.getElementById("txt-p1-history").innerText =
+          translations[lang].p1Hist;
+        document.getElementById("txt-p2-history").innerText =
+          translations[lang].p2Hist;
+        document.getElementById("btn-restart").innerText =
+          translations[lang].restartBtn;
+
+        // Dinamik panelleri o anki duruma göre güncelle
+        if (myId) {
+          document.getElementById("role-badge").innerText =
+            translations[lang].playerInfo + myId;
+        } else {
+          document.getElementById("role-badge").innerText =
+            translations[lang].connecting;
+        }
+
+        if (
+          document.getElementById("game-screen").classList.contains("hide") ===
+          false
+        ) {
+          updateTurn(myTurn ? myId : myId === 1 ? 2 : 1);
+        }
+      }
 
       socket.on("oyuncu_atandi", (data) => {
         myId = data.oyuncu_id;
-        document.getElementById("role-badge").innerText = `Sen: Oyuncu ${myId}`;
+        document.getElementById("role-badge").innerText =
+          translations[currentLang].playerInfo + myId;
       });
 
       function sendSecret() {
         const val = document.getElementById("secret-input").value;
         if (val.length !== 4 || isNaN(val))
-          return alert("4 haneli sayı girin!");
+          return alert(translations[currentLang].alertFourDigits);
 
         socket.emit("sayi_gonder", { sayi: val });
         document.getElementById("setup-screen").innerHTML =
-          "<h3>Sayın kilitlendi. Rakibin sayısını seçmesi bekleniyor...</h3>";
+          `<h3>${translations[currentLang].waitingOpponent}</h3>`;
       }
 
       socket.on("oyun_basladi", (data) => {
@@ -99,7 +234,9 @@
         document.getElementById("my-number-panel").classList.remove("hide");
 
         const myNum = myId === 1 ? data.o1_sayi : data.o2_sayi;
-        document.getElementById("secret-display").innerText = myNum;
+        // "Senin Gizli Sayın: " yazısını koruyarak sayıyı ekle
+        document.getElementById("my-number-panel").innerHTML =
+          `<h3>${translations[currentLang].mySecret} <span id="secret-display">${myNum}</span></h3>`;
 
         updateTurn(data.sira);
       });
@@ -110,12 +247,12 @@
         badge.classList.remove("hide");
 
         if (myTurn) {
-          badge.innerText = "Senin Sıran!";
+          badge.innerText = translations[currentLang].yourTurn;
           badge.style.background = "#2ecc71";
           document.getElementById("guess-input").disabled = false;
           document.getElementById("send-guess-btn").disabled = false;
         } else {
-          badge.innerText = "Rakibin Sırası...";
+          badge.innerText = translations[currentLang].opponentTurn;
           badge.style.background = "#e74c3c";
           document.getElementById("guess-input").disabled = true;
           document.getElementById("send-guess-btn").disabled = true;
@@ -125,7 +262,7 @@
       function sendGuess() {
         const val = document.getElementById("guess-input").value;
         if (val.length !== 4 || isNaN(val))
-          return alert("4 haneli bir tahmin girin!");
+          return alert(translations[currentLang].alertFourDigits);
         socket.emit("tahmin_gonder", { tahmin: val });
         document.getElementById("guess-input").value = "";
       }
@@ -146,12 +283,12 @@
         document.getElementById("win-screen").classList.remove("hide");
         document.getElementById("win-message").innerText =
           data.kazanan === myId
-            ? "🏆 OYUNU KAZANDINIZ!"
-            : "❌ RAKİBİNİZ SAYINIZI BULDU!";
+            ? translations[currentLang].winMsg
+            : translations[currentLang].loseMsg;
       });
 
       socket.on("oyun_sifirlandi", () => {
-        alert("Bir oyuncu odadan ayrıldı, oyun sıfırlanıyor.");
+        alert(translations[currentLang].alertDisconnect);
         location.reload();
       });
     </script>

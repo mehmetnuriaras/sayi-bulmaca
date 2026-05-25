@@ -114,4 +114,6 @@ def handle_tahmin(data):
 if __name__ == '__main__':
     # Render portu otomatik atar, bulamazsa 5001 kullanır
     port = int(os.environ.get("PORT", 5001))
-    socketio.run(app, debug=False, host='0.0.0.0', port=port)
+    
+    # allow_unsafe_werkzeug=True ekleyerek Render üzerinde ham sunucunun çalışmasına izin veriyoruz
+    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
