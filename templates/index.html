@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sayı Bulmaca - Multiplayer</title>
     <link rel="stylesheet" href="/static/style.css" />
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-      /* Dil butonu için küçük bir estetik ekleme */
       .lang-switcher {
         display: flex;
         justify-content: flex-end;
@@ -87,8 +86,8 @@
             <div id="p1-history" class="history-list"></div>
           </div>
           <div class="history-block">
-            <h3 id="txt-p2-history">Oyuncu 2 Tahminleri</h3>
-            <div id="p2-history" class="history-list"></div>
+            <h3>Oyuncu 2 Tahminleri</h3>
+            <div id="txt-p2-history">Oyuncu 2 Tahminleri</div>
           </div>
         </div>
       </div>
@@ -103,15 +102,17 @@
     </div>
 
     <script>
-      const socket = io(window.location.origin, {
+      // Canlı sunucularda HTTPS/WSS uyumluluğunu zorunlu kılan güvenli bağlantı ayarı
+      const socket = io({
         transports: ["websocket", "polling"],
+        secure: true,
+        reconnectionAttempts: 5,
       });
 
       let myId = null;
       let myTurn = false;
-      let currentLang = "tr"; // Varsayılan dil Türkçe
+      let currentLang = "tr";
 
-      // DİL SÖZLÜĞÜ (Çeviriler)
       const translations = {
         tr: {
           title: "Sayı Bulmaca",
@@ -133,9 +134,7 @@
           winMsg: "🏆 OYUNU KAZANDINIZ!",
           loseMsg: "❌ RAKİBİNİZ SAYINIZI BULDU!",
           restartBtn: "Yeniden Oyna",
-          alertRoomFull: "Oda dolu!",
           alertFourDigits: "4 haneli bir sayı girin!",
-          alertDisconnect: "Bir oyuncu odadan ayrıldı, oyun sıfırlanıyor.",
         },
         en: {
           title: "Number Puzzle",
@@ -150,24 +149,19 @@
           guessBtn: "Guess",
           p1Hist: "Player 1 Guesses",
           p2Hist: "Player 2 Guesses",
-          waitingOpponent:
-            "Your number is locked. Waiting for opponent to choose...",
+          waitingOpponent: "Your number is locked. Waiting for opponent...",
           yourTurn: "Your Turn!",
           opponentTurn: "Opponent's Turn...",
           winMsg: "🏆 YOU WON THE GAME!",
           loseMsg: "❌ OPPONENT FOUND YOUR NUMBER!",
           restartBtn: "Play Again",
-          alertRoomFull: "Room is full!",
           alertFourDigits: "Please enter a 4-digit number!",
-          alertDisconnect: "A player disconnected, restarting the game.",
         },
       };
 
-      // DİL DEĞİŞTİRME FONKSİYONU
       function setLanguage(lang) {
         currentLang = lang;
 
-        // Buton aktiflik sınıflarını güncelle
         document
           .getElementById("btn-tr")
           .classList.toggle("active", lang === "tr");
@@ -175,7 +169,6 @@
           .getElementById("btn-en")
           .classList.toggle("active", lang === "en");
 
-        // Statik metinleri güncelle
         document.getElementById("txt-title").innerText =
           translations[lang].title;
         document.getElementById("txt-setup-title").innerText =
@@ -195,22 +188,26 @@
         document.getElementById("btn-restart").innerText =
           translations[lang].restartBtn;
 
-        // Dinamik panelleri o anki duruma göre güncelle
+        // Oyun henüz başlamadıysa veya başrol atanmadıysa rozeti güncelle
         if (myId) {
           document.getElementById("role-badge").innerText =
             translations[lang].playerInfo + myId;
+          // Oyun paneli açıksa sırayı da tercüme et
+          if (
+            !document.getElementById("game-screen").classList.contains("hide")
+          ) {
+            const currentTurnSira = myTurn ? myId : myId === 1 ? 2 : 1;
+            updateTurn(currentTurnSira);
+          }
         } else {
           document.getElementById("role-badge").innerText =
             translations[lang].connecting;
         }
-
-        if (
-          document.getElementById("game-screen").classList.contains("hide") ===
-          false
-        ) {
-          updateTurn(myTurn ? myId : myId === 1 ? 2 : 1);
-        }
       }
+
+      socket.on("connect", () => {
+        console.log("Canlı sunucuya güvenli bağlantı kuruldu!");
+      });
 
       socket.on("oyuncu_atandi", (data) => {
         myId = data.oyuncu_id;
@@ -234,7 +231,6 @@
         document.getElementById("my-number-panel").classList.remove("hide");
 
         const myNum = myId === 1 ? data.o1_sayi : data.o2_sayi;
-        // "Senin Gizli Sayın: " yazısını koruyarak sayıyı ekle
         document.getElementById("my-number-panel").innerHTML =
           `<h3>${translations[currentLang].mySecret} <span id="secret-display">${myNum}</span></h3>`;
 
@@ -288,7 +284,6 @@
       });
 
       socket.on("oyun_sifirlandi", () => {
-        alert(translations[currentLang].alertDisconnect);
         location.reload();
       });
     </script>
