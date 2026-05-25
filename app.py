@@ -12,13 +12,12 @@ oyun_odasi = {
     "durum": "SAYI_GIRIS"
 }
 
-# Sayının oyun kurallarına uygun olup olmadığını denetleyen fonksiyon
 def sayi_gecerli_mi(sayi):
     if len(sayi) != 4 or not sayi.isdigit():
         return False
-    if sayi[0] == '0': # 0 ile başlayamaz
+    if sayi[0] == '0':
         return False
-    if len(set(sayi)) != 4: # Rakamları farklı olmalı
+    if len(set(sayi)) != 4:
         return False
     return True
 
@@ -79,7 +78,6 @@ def handle_sayi(data):
     oyuncular = oyun_odasi["oyuncular"]
     sayi = data.get("sayi", "")
     
-    # Sunucu tarafında güvenlik kontrolü
     if not sayi_gecerli_mi(sayi):
         emit('hata_mesaji', {"mesaj_tr": "Geçersiz sayı! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid number! Cannot start with 0 and digits must be unique."}, room=sid)
         return
@@ -105,7 +103,6 @@ def handle_tahmin(data):
     oyuncular = oyun_odasi["oyuncular"]
     tahmin = data.get("tahmin", "")
     
-    # Tahmin için de aynı kurallar geçerli
     if not sayi_gecerli_mi(tahmin):
         emit('hata_mesaji', {"mesaj_tr": "Geçersiz tahmin! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid guess! Cannot start with 0 and digits must be unique."}, room=sid)
         return
