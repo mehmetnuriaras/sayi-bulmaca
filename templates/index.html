@@ -86,8 +86,8 @@
             <div id="p1-history" class="history-list"></div>
           </div>
           <div class="history-block">
-            <h3>Oyuncu 2 Tahminleri</h3>
-            <div id="txt-p2-history">Oyuncu 2 Tahminleri</div>
+            <h3 id="txt-p2-history">Oyuncu 2 Tahminleri</h3>
+            <div id="p2-history" class="history-list"></div>
           </div>
         </div>
       </div>
@@ -102,16 +102,15 @@
     </div>
 
     <script>
-      // Canlı sunucularda HTTPS/WSS uyumluluğunu zorunlu kılan güvenli bağlantı ayarı
       const socket = io({
         transports: ["websocket", "polling"],
         secure: true,
-        reconnectionAttempts: 5,
       });
 
       let myId = null;
       let myTurn = false;
       let currentLang = "tr";
+      let mySecretNumber = "****"; // Kendi sayımızı hafızada tutmak için
 
       const translations = {
         tr: {
@@ -188,26 +187,35 @@
         document.getElementById("btn-restart").innerText =
           translations[lang].restartBtn;
 
-        // Oyun henüz başlamadıysa veya başrol atanmadıysa rozeti güncelle
+        // Gizli sayı panel metnini güncelle
+        if (
+          document
+            .getElementById("my-number-panel")
+            .classList.contains("hide") === false
+        ) {
+          document.getElementById("my-number-panel").innerHTML =
+            `<h3>${translations[lang].mySecret} <span id="secret-display">${mySecretNumber}</span></h3>`;
+        }
+
         if (myId) {
           document.getElementById("role-badge").innerText =
             translations[lang].playerInfo + myId;
-          // Oyun paneli açıksa sırayı da tercüme et
           if (
-            !document.getElementById("game-screen").classList.contains("hide")
+            document
+              .getElementById("game-screen")
+              .classList.contains("hide") === false
           ) {
-            const currentTurnSira = myTurn ? myId : myId === 1 ? 2 : 1;
-            updateTurn(currentTurnSira);
+            // Turn badge yazısını dil değiştiğinde anında güncelle
+            const badge = document.getElementById("turn-badge");
+            badge.innerText = myTurn
+              ? translations[lang].yourTurn
+              : translations[lang].opponentTurn;
           }
         } else {
           document.getElementById("role-badge").innerText =
             translations[lang].connecting;
         }
       }
-
-      socket.on("connect", () => {
-        console.log("Canlı sunucuya güvenli bağlantı kuruldu!");
-      });
 
       socket.on("oyuncu_atandi", (data) => {
         myId = data.oyuncu_id;
@@ -230,9 +238,9 @@
         document.getElementById("game-screen").classList.remove("hide");
         document.getElementById("my-number-panel").classList.remove("hide");
 
-        const myNum = myId === 1 ? data.o1_sayi : data.o2_sayi;
+        mySecretNumber = myId === 1 ? data.o1_sayi : data.o2_sayi;
         document.getElementById("my-number-panel").innerHTML =
-          `<h3>${translations[currentLang].mySecret} <span id="secret-display">${myNum}</span></h3>`;
+          `<h3>${translations[currentLang].mySecret} <span id="secret-display">${mySecretNumber}</span></h3>`;
 
         updateTurn(data.sira);
       });
@@ -259,6 +267,8 @@
         const val = document.getElementById("guess-input").value;
         if (val.length !== 4 || isNaN(val))
           return alert(translations[currentLang].alertFourDigits);
+
+        // Python backend bizden 'tahmin' parametresi bekliyor
         socket.emit("tahmin_gonder", { tahmin: val });
         document.getElementById("guess-input").value = "";
       }
@@ -268,6 +278,7 @@
         card.className = "history-card slide-in";
         card.innerHTML = `<span class="num">${data.tahmin}</span> <span class="res">${data.sonuc}</span>`;
 
+        // Python'dan gelen veri anahtarı 'tahmin_eden'
         const targetList = data.tahmin_eden === 1 ? "p1-history" : "p2-history";
         document.getElementById(targetList).prepend(card);
 
