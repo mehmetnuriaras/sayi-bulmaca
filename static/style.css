@@ -1,0 +1,174 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #121214;
+  color: #e1e1e6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 15px;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 600px;
+  background: #1d1d22;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+h1 {
+  color: #8257e5;
+  margin-bottom: 10px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: #29292e;
+  border-radius: 20px;
+  font-size: 14px;
+  margin: 5px;
+}
+
+.panel {
+  background: #29292e;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 20px;
+  border: 1px solid #8257e5;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  background: #121214;
+  border: 2px solid #29292e;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 18px;
+  text-align: center;
+  letter-spacing: 4px;
+}
+
+input:focus {
+  border-color: #8257e5;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  background: #8257e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:disabled {
+  background: #444;
+  cursor: not-allowed;
+}
+button:hover:not(:disabled) {
+  background: #9466ff;
+}
+
+.hide {
+  display: none !important;
+}
+
+/* Tarihçe Paneli ve Giriş Animasyonları */
+.history-container {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.history-block {
+  flex: 1;
+  background: #121214;
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.history-block h3 {
+  font-size: 13px;
+  color: #7c7c8a;
+  margin-bottom: 8px;
+}
+
+.history-card {
+  display: flex;
+  justify-content: space-between;
+  background: #29292e;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.history-card .res {
+  color: #00b37e;
+}
+
+/* Animasyon */
+.slide-in {
+  animation: slideKilitle 0.4s ease-out forwards;
+}
+
+@keyframes slideKilitle {
+  0% {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.win-animation {
+  font-size: 64px;
+  animation: pop 0.5s ease-in-out infinite alternate;
+}
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+/* Mobil Uyumluluk */
+@media (max-width: 480px) {
+  .history-container {
+    flex-direction: column;
+  }
+}

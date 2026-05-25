@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sayı Bulmaca - Multiplayer</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  </head>
+  <body>
+    <div class="game-container">
+      <header>
+        <h1>Sayı Bulmaca</h1>
+        <div id="role-badge" class="badge">Bağlanılıyor...</div>
+        <div id="turn-badge" class="badge hide">Sıra Bekleniyor...</div>
+      </header>
+
+      <div id="my-number-panel" class="panel hide">
+        <h3>Senin Gizli Sayın: <span id="secret-display">****</span></h3>
+      </div>
+
+      <div id="setup-screen" class="screen">
+        <h2>4 Haneli Gizli Sayını Belirle</h2>
+        <p>Rakamları birbirinden farklı olmalıdır.</p>
+        <input
+          type="text"
+          id="secret-input"
+          maxlength="4"
+          placeholder="Örn: 1234"
+          pattern="\d*"
+        />
+        <button id="send-secret-btn" onclick="sendSecret()">
+          Sayımı Kilitle
+        </button>
+      </div>
+
+      <div id="game-screen" class="screen hide">
+        <div class="input-area">
+          <input
+            type="text"
+            id="guess-input"
+            maxlength="4"
+            placeholder="Tahminin nedir?"
+            pattern="\d*"
+          />
+          <button id="send-guess-btn" onclick="sendGuess()">Tahmin Et</button>
+        </div>
+
+        <div class="history-container">
+          <div class="history-block">
+            <h3>Oyuncu 1 Tahminleri</h3>
+            <div id="p1-history" class="history-list"></div>
+          </div>
+          <div class="history-block">
+            <h3>Oyuncu 2 Tahminleri</h3>
+            <div id="p2-history" class="history-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="win-screen" class="screen hide">
+        <div class="win-animation">🎉</div>
+        <h2 id="win-message">Tebrikler Kazandınız!</h2>
+        <button onclick="location.reload()">Yeniden Oyna</button>
+      </div>
+    </div>
+
+    <script>
+      // Sunucuyla tam senkronizasyon için boş bırakıyoruz, otomatik eşleşecek
+      const socket = io(window.location.origin, {
+        transports: ["websocket", "polling"],
+      });
+
+      let myId = null;
+      let myTurn = false;
+
+      socket.on("connect", () => {
+        console.log("Sunucuya başarıyla bağlanıldı!");
+      });
+
+      socket.on("oyuncu_atandi", (data) => {
+        myId = data.oyuncu_id;
+        document.getElementById("role-badge").innerText = `Sen: Oyuncu ${myId}`;
+      });
+
+      function sendSecret() {
+        const val = document.getElementById("secret-input").value;
+        if (val.length !== 4 || isNaN(val))
+          return alert("4 haneli sayı girin!");
+
+        socket.emit("sayi_gonder", { sayi: val });
+        document.getElementById("setup-screen").innerHTML =
+          "<h3>Sayın kilitlendi. Rakibin sayısını seçmesi bekleniyor...</h3>";
+      }
+
+      socket.on("oyun_basladi", (data) => {
+        document.getElementById("setup-screen").classList.add("hide");
+        document.getElementById("game-screen").classList.remove("hide");
+        document.getElementById("my-number-panel").classList.remove("hide");
+
+        const myNum = myId === 1 ? data.o1_sayi : data.o2_sayi;
+        document.getElementById("secret-display").innerText = myNum;
+
+        updateTurn(data.sira);
+      });
+
+      function updateTurn(sira) {
+        myTurn = sira === myId;
+        const badge = document.getElementById("turn-badge");
+        badge.classList.remove("hide");
+
+        if (myTurn) {
+          badge.innerText = "Senin Sıran!";
+          badge.style.background = "#2ecc71";
+          document.getElementById("guess-input").disabled = false;
+          document.getElementById("send-guess-btn").disabled = false;
+        } else {
+          badge.innerText = "Rakibin Sırası...";
+          badge.style.background = "#e74c3c";
+          document.getElementById("guess-input").disabled = true;
+          document.getElementById("send-guess-btn").disabled = true;
+        }
+      }
+
+      function sendGuess() {
+        const val = document.getElementById("guess-input").value;
+        if (val.length !== 4 || isNaN(val))
+          return alert("4 haneli bir tahmin girin!");
+        socket.emit("tahmin_gonder", { tahmin: val });
+        document.getElementById("guess-input").value = "";
+      }
+
+      socket.on("tahmin_sonuc", (data) => {
+        const card = document.createElement("div");
+        card.className = "history-card slide-in";
+        card.innerHTML = `<span class="num">${data.tahmin}</span> <span class="res">${data.sonuc}</span>`;
+
+        const targetList = data.tahmin_eden === 1 ? "p1-history" : "p2-history";
+        document.getElementById(targetList).prepend(card);
+
+        updateTurn(data.yeni_sira);
+      });
+
+      socket.on("oyun_bitti", (data) => {
+        document.getElementById("game-screen").classList.add("hide");
+        document.getElementById("win-screen").classList.remove("hide");
+        document.getElementById("win-message").innerText =
+          data.kazanan === myId
+            ? "🏆 OYUNU KAZANDINIZ!"
+            : "❌ RAKİBİNİZ SAYINIZI BULDU!";
+      });
+
+      socket.on("oyun_sifirlandi", () => {
+        alert("Bir oyuncu odadan ayrıldı, oyun sıfırlanıyor.");
+        location.reload();
+      });
+    </script>
+  </body>
+</html>
