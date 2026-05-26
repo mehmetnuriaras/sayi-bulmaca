@@ -1,5 +1,5 @@
 Flask
 Flask-SocketIO
-eventlet
+eventlet==0.33.3
 Werkzeug
 gunicorn
