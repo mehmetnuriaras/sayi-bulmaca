@@ -1,133 +1,138 @@
 import os
-from flask import Flask, render_template, request
-from flask_socketio import SocketIO, emit
+import random
+import sqlite3
+from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'gizli-anahtar-123'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=True, engineio_logger=True)
+app.config['SECRET_KEY'] = 'gizli_oyun_anahtari_1234'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-oyun_odasi = {
-    "oyuncular": {},  
-    "sira": 1,
-    "durum": "SAYI_GIRIS"
-}
+DATABASE = 'oyun.db'
 
-def sayi_gecerli_mi(sayi):
-    if len(sayi) != 4 or not sayi.isdigit():
-        return False
-    if sayi[0] == '0':
-        return False
-    if len(set(sayi)) != 4:
-        return False
-    return True
+# 1. Veritabanı Kurulumu ve İleriye Dönük Alanlar
+def init_db():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            is_verified INTEGER DEFAULT 0
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-def ipucu_hesapla(tahmin, gizli):
-    artilar = 0
-    eksiler = 0
-    for i in range(4):
-        if tahmin[i] == gizli[i]:
-            artilar += 1
-        elif tahmin[i] in gizli:
-            eksiler += 1
-            
-    if artilar == 0 and eksiler == 0:
-        return "0"
-    
-    sonuc = ""
-    if artilar > 0: sonuc += f"+{artilar} "
-    if eksiler > 0: sonuc += f"-{eksiler}"
-    return sonuc.strip()
+init_db()
+
+# 2. Eşleştirme (Matchmaking) Havuzu Değişkenleri
+# { socket_id: username } şeklinde oyuncuları tutacağız
+waiting_players = {} 
+# Aktif oyun odaları ve odadaki oyuncuların durumları
+active_games = {} 
+
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# 3. HTTP API: Kayıt Olma ve Giriş Yapma
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Kullanıcı adı veya şifre boş olamaz.'}), 400
+        
+    hashed_password = generate_password_hash(password)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Kayıt başarıyla oluşturuldu.'})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'message': 'Bu kullanıcı adı zaten alınmış.'}), 400
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    conn.close()
+    
+    if user and check_password_hash(user['password'], password):
+        return jsonify({'success': True, 'username': user['username']})
+    else:
+        return jsonify({'success': False, 'message': 'Hatalı kullanıcı adı veya şifre.'}), 401
+
+# 4. Socket.IO: Anlık Eşleştirme ve Oyun Yönetimi
 @socketio.on('connect')
 def handle_connect():
-    sid = request.sid
-    oyuncular = oyun_odasi["oyuncular"]
-    
-    if sid in oyuncular:
-        return
-
-    if len(oyuncular) < 2:
-        mevcut_idler = [p["id"] for p in oyuncular.values()]
-        o_id = 2 if 1 in mevcut_idler else 1
-        
-        oyuncular[sid] = {"id": o_id, "sayi": None, "tahminler": []}
-        emit('oyuncu_atandi', {"oyuncu_id": o_id}, room=sid)
-    else:
-        emit('hata', {"mesaj": "Oda dolu!"}, room=sid)
+    print(f"Yeni bir cihaz bağlandı: {request.sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    sid = request.sid
-    oyuncular = oyun_odasi["oyuncular"]
-    if sid in oyuncular:
-        del oyuncular[sid]
-        oyun_odasi["sira"] = 1
-        oyun_odasi["durum"] = "SAYI_GIRIS"
-        for p in oyuncular.values():
-            p["sayi"] = None
-            p["tahminler"] = []
-        emit('oyun_sifirlandi', broadcast=True)
+    # Oyuncu havuzda beklerken çıkarsa havuzdan temizle
+    if request.sid in waiting_players:
+        print(f"Bekleyen oyuncu ayrıldı: {waiting_players[request.sid]}")
+        del waiting_players[request.sid]
 
-@socketio.on('sayi_gonder')
-def handle_sayi(data):
-    sid = request.sid
-    oyuncular = oyun_odasi["oyuncular"]
-    sayi = data.get("sayi", "")
+@socketio.on('find_match')
+def handle_find_match(data):
+    username = data.get('username')
     
-    if not sayi_gecerli_mi(sayi):
-        emit('hata_mesaji', {"mesaj_tr": "Geçersiz sayı! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid number! Cannot start with 0 and digits must be unique."}, room=sid)
+    # Eğer kullanıcı havuzda zaten varsa işlem yapma
+    if request.sid in waiting_players:
         return
 
-    if sid in oyuncular:
-        oyuncular[sid]["sayi"] = sayi
+    # Havuzda bekleyen başka biri var mı?
+    if waiting_players:
+        # Havuzdan ilk bekleyen oyuncuyu seç
+        opponent_sid, opponent_username = waiting_players.popitem()
         
-        hazir = len(oyuncular) == 2 and all(p["sayi"] is not None for p in oyuncular.values())
-        if hazir:
-            oyun_odasi["durum"] = "OYUN_DEVAM"
-            o1_sayi = next(p["sayi"] for p in oyuncular.values() if p["id"] == 1)
-            o2_sayi = next(p["sayi"] for p in oyuncular.values() if p["id"] == 2)
-            
-            emit('oyun_basladi', {
-                "sira": oyun_odasi["sira"],
-                "o1_sayi": o1_sayi,
-                "o2_sayi": o2_sayi
-            }, broadcast=True)
-
-@socketio.on('tahmin_gonder')
-def handle_tahmin(data):
-    sid = request.sid
-    oyuncular = oyun_odasi["oyuncular"]
-    tahmin = data.get("tahmin", "")
-    
-    if not sayi_gecerli_mi(tahmin):
-        emit('hata_mesaji', {"mesaj_tr": "Geçersiz tahmin! 0 ile başlayamaz ve rakamları farklı olmalı.", "mesaj_en": "Invalid guess! Cannot start with 0 and digits must be unique."}, room=sid)
-        return
-    
-    aktif_oyuncu = oyuncular.get(sid)
-    if not aktif_oyuncu or aktif_oyuncu["id"] != oyun_odasi["sira"]:
-        return
-
-    rakip_oyuncu = next(p for p in oyuncular.values() if p["id"] != aktif_oyuncu["id"])
-    
-    sonuc = ipucu_hesapla(tahmin, rakip_oyuncu["sayi"])
-    aktif_oyuncu["tahminler"].append({"tahmin": tahmin, "sonuc": sonuc})
-    
-    if sonuc == "+4":
-        oyun_odasi["durum"] = "OYUN_BITTI"
-        emit('oyun_bitti', {"kazanan": aktif_oyuncu["id"]}, broadcast=True)
+        # Benzersiz bir oda adı oluştur (örn: room_12345)
+        room_id = f"room_{random.randint(1000, 9999)}"
+        
+        # İki oyuncuyu da odaya dahil et
+        join_room(room_id, sid=request.sid)
+        join_room(room_id, sid=opponent_sid)
+        
+        # Oyun durumunu başlat (Sayı bulmaca mantığı için)
+        active_games[room_id] = {
+            'players': {
+                request.sid: {'username': username, 'number': None, 'guesses': []},
+                opponent_sid: {'username': opponent_username, 'number': None, 'guesses': []}
+            },
+            'turn': request.sid # İlk hamle hakkını rastgele veya bağlanan son kişiye verelim
+        }
+        
+        # İki tarafa da eşleşmenin başarılı olduğunu ve rakip isimlerini bildir
+        emit('match_found', {'room_id': room_id, 'opponent': opponent_username}, room=request.sid)
+        emit('match_found', {'room_id': room_id, 'opponent': username}, room=opponent_sid)
+        
+        print(f"Eşleşme Sağlandı! Oda: {room_id} -> {username} VS {opponent_username}")
     else:
-        oyun_odasi["sira"] = 2 if oyun_odasi["sira"] == 1 else 1
-        emit('tahmin_sonuc', {
-            "tahmin_eden": aktif_oyuncu["id"],
-            "tahmin": tahmin,
-            "sonuc": sonuc,
-            "yeni_sira": oyun_odasi["sira"]
-        }, broadcast=True)
+        # Havuz boşsa, bu oyuncuyu bekleyenler listesine ekle
+        waiting_players[request.sid] = username
+        emit('waiting_for_match', {'message': 'Rakip aranıyor...'})
+        print(f"Oyuncu havuzda bekliyor: {username} ({request.sid})")
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5001))
-    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, port=5001)

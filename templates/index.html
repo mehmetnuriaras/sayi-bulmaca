@@ -3,322 +3,209 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sayı Bulmaca - Multiplayer</title>
-    <link rel="stylesheet" href="/static/style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <title>4 Haneli Sayı Bulmaca - Çok Oyunculu</title>
+    <script src="https://cdn.socketio.org/4.7.2/socketio.min.js"></script>
     <style>
-      .lang-switcher {
+      body {
+        font-family: "Arial", sans-serif;
+        background-color: #f4f7f6;
         display: flex;
-        justify-content: flex-end;
-        gap: 5px;
-        margin-bottom: 10px;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
       }
-      .lang-btn {
-        background: #29292e;
-        color: #7c7c8a;
-        border: 1px solid #444;
-        padding: 4px 10px;
-        font-size: 12px;
-        border-radius: 4px;
-        width: auto;
-        cursor: pointer;
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
       }
-      .lang-btn.active {
-        background: #8257e5;
+      .screen {
+        display: none;
+      }
+      .active {
+        display: block;
+      }
+
+      input {
+        width: 90%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+      }
+      button {
+        width: 95%;
+        padding: 12px;
+        background-color: #2ecc71;
         color: white;
-        border-color: #8257e5;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 5px 0;
+      }
+      button:hover {
+        background-color: #27ae60;
+      }
+      .secondary-btn {
+        background-color: #3498db;
+      }
+      .secondary-btn:hover {
+        background-color: #2980b9;
+      }
+      .guest-btn {
+        background-color: #7f8c8d;
+      }
+      .guest-btn:hover {
+        background-color: #718093;
+      }
+
+      /* Loading Animasyonu */
+      .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border-left-color: #2ecc71;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
   <body>
-    <div class="game-container">
-      <div class="lang-switcher">
-        <button class="lang-btn active" id="btn-tr" onclick="setLanguage('tr')">
-          TR
+    <div class="container">
+      <div id="auth-screen" class="screen active">
+        <h2>Sayı Bulmaca Oyununa Giriş</h2>
+        <input type="text" id="username" placeholder="Kullanıcı Adı" />
+        <input type="password" id="password" placeholder="Şifre" />
+        <button onclick="login()">Giriş Yap</button>
+        <button class="secondary-btn" onclick="register()">Kayıt Ol</button>
+        <hr />
+        <button class="guest-btn" onclick="loginAsGuest()">
+          Misafir Olarak Oyna
         </button>
-        <button class="lang-btn" id="btn-en" onclick="setLanguage('en')">
-          EN
-        </button>
+        <p id="auth-error" style="color: red"></p>
       </div>
 
-      <header>
-        <h1 id="txt-title">Sayı Bulmaca</h1>
-        <div id="role-badge" class="badge">Bağlanılıyor...</div>
-        <div id="turn-badge" class="badge hide">Sıra Bekleniyor...</div>
-      </header>
-
-      <div id="my-number-panel" class="panel hide">
-        <h3>
-          <span id="txt-my-secret">Senin Gizli Sayın:</span>
-          <span id="secret-display">****</span>
-        </h3>
+      <div id="menu-screen" class="screen">
+        <h2>Hoş geldin, <span id="display-name"></span>!</h2>
+        <p>Çevrimiçi rakiplerle eşleşmek için hazır ol.</p>
+        <button onclick="startMatchmaking()">Oyun Bul</button>
+        <button class="guest-btn" onclick="logout()">Çıkış Yap</button>
       </div>
 
-      <div id="setup-screen" class="screen">
-        <h2 id="txt-setup-title">4 Haneli Gizli Sayını Belirle</h2>
-        <p id="txt-setup-desc">
-          Rakamları birbirinden farklı olmalıdır. 0 ile başlayamaz.
-        </p>
-        <input
-          type="text"
-          id="secret-input"
-          maxlength="4"
-          placeholder="Örn: 1234"
-          pattern="\d*"
-        />
-        <button id="send-secret-btn" onclick="sendSecret()">
-          Sayımı Kilitle
-        </button>
+      <div id="loading-screen" class="screen">
+        <h2 id="loading-text">Rakip Aranıyor...</h2>
+        <div class="spinner"></div>
+        <p>Lütfen diğer bir oyuncunun sıraya girmesini bekleyin.</p>
       </div>
 
-      <div id="game-screen" class="screen hide">
-        <div class="input-area">
-          <input
-            type="text"
-            id="guess-input"
-            maxlength="4"
-            placeholder="Tahminin nedir?"
-            pattern="\d*"
-          />
-          <button id="send-guess-btn" onclick="sendGuess()">Tahmin Et</button>
+      <div id="game-screen" class="screen">
+        <h2>Oyun Başladı!</h2>
+        <p>Rakibin: <strong id="opponent-name"></strong></p>
+        <p>Oda ID: <span id="room-display"></span></p>
+
+        <div style="background: #eee; padding: 15px; border-radius: 8px">
+          <p>
+            Buraya önceki aşamalarda hazırladığımız 4 haneli sayı tahmin
+            filtreleri ve oyun tahtası gelecek.
+          </p>
         </div>
-
-        <div class="history-container">
-          <div class="history-block">
-            <h3 id="txt-p1-history">Oyuncu 1 Tahminleri</h3>
-            <div id="p1-history" class="history-list"></div>
-          </div>
-          <div class="history-block">
-            <h3 id="txt-p2-history">Oyuncu 2 Tahminleri</h3>
-            <div id="p2-history" class="history-list"></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="win-screen" class="screen hide">
-        <div class="win-animation">🎉</div>
-        <h2 id="win-message">Tebrikler Kazandınız!</h2>
-        <button id="btn-restart" onclick="location.reload()">
-          Yeniden Oyna
-        </button>
       </div>
     </div>
 
     <script>
-      const socket = io({
-        transports: ["websocket", "polling"],
-        secure: true,
-      });
+      const socket = io();
+      let currentUsername = "";
+      let currentRoom = "";
 
-      let myId = null;
-      let myTurn = false;
-      let currentLang = "tr";
-      let isWaitingMode = false;
-      let mySecretNumber = "****";
-
-      const translations = {
-        tr: {
-          title: "Sayı Bulmaca",
-          connecting: "Bağlanılıyor...",
-          waitingTurn: "Sıra Bekleniyor...",
-          playerInfo: "Sen: Oyuncu ",
-          mySecret: "Senin Gizli Sayın:",
-          setupTitle: "4 Haneli Gizli Sayını Belirle",
-          setupDesc:
-            "Rakamları birbirinden farklı olmalıdır. 0 ile başlayamaz.",
-          lockBtn: "Sayımı Kilitle",
-          guessPlaceholder: "Tahminin nedir?",
-          guessBtn: "Tahmin Et",
-          p1Hist: "Oyuncu 1 Tahminleri",
-          p2Hist: "Oyuncu 2 Tahminleri",
-          waitingOpponent:
-            "Sayın kilitlendi. Rakibin sayısını seçmesi bekleniyor...",
-          yourTurn: "Senin Sıran!",
-          opponentTurn: "Rakibin Sırası...",
-          winMsg: "🏆 OYUNU KAZANDINIZ!",
-          loseMsg: "❌ RAKİBİNİZ SAYINIZI BULDU!",
-          restartBtn: "Yeniden Oyna",
-          errValidation:
-            "Geçersiz sayı! Lütfen 4 haneli, 0 ile başlamayan ve rakamları birbirinden farklı bir sayı girin.",
-        },
-        en: {
-          title: "Number Puzzle",
-          connecting: "Connecting...",
-          waitingTurn: "Waiting for turn...",
-          playerInfo: "You: Player ",
-          mySecret: "Your Secret Number:",
-          setupTitle: "Determine Your 4-Digit Secret Number",
-          setupDesc: "Digits must be unique. Cannot start with 0.",
-          lockBtn: "Lock My Number",
-          guessPlaceholder: "What's your guess?",
-          guessBtn: "Guess",
-          p1Hist: "Player 1 Guesses",
-          p2Hist: "Player 2 Guesses",
-          waitingOpponent:
-            "Your number is locked. Waiting for opponent to choose...",
-          yourTurn: "Your Turn!",
-          opponentTurn: "Opponent's Turn...",
-          winMsg: "🏆 YOU WON THE GAME!",
-          loseMsg: "❌ OPPONENT FOUND YOUR NUMBER!",
-          restartBtn: "Play Again",
-          errValidation:
-            "Invalid number! Please enter a 4-digit number that doesn't start with 0 and has unique digits.",
-        },
-      };
-
-      // JS Kural Filtre Fonksiyonu Düzeltildi
-      function checkNumberIsValid(sayi) {
-        if (sayi.length !== 4 || isNaN(sayi)) return false;
-        if (sayi[0] === "0") return false;
-
-        let digitsSet = new Set(sayi);
-        if (digitsSet.size !== 4) return false;
-
-        return true;
-      }
-
-      function setLanguage(lang) {
-        currentLang = lang;
-
+      // Ekran Değiştirme Fonksiyonu
+      function showScreen(screenId) {
         document
-          .getElementById("btn-tr")
-          .classList.toggle("active", lang === "tr");
-        document
-          .getElementById("btn-en")
-          .classList.toggle("active", lang === "en");
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(screenId).classList.add("active");
+      }
 
-        document.getElementById("txt-title").innerText =
-          translations[lang].title;
-        document.getElementById("guess-input").placeholder =
-          translations[lang].guessPlaceholder;
-        document.getElementById("send-guess-btn").innerText =
-          translations[lang].guessBtn;
-        document.getElementById("txt-p1-history").innerText =
-          translations[lang].p1Hist;
-        document.getElementById("txt-p2-history").innerText =
-          translations[lang].p2Hist;
-        document.getElementById("btn-restart").innerText =
-          translations[lang].restartBtn;
+      // Kayıt Olma İşlemi
+      async function register() {
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
 
-        if (document.getElementById("send-secret-btn")) {
-          if (isWaitingMode) {
-            document.getElementById("setup-screen").innerHTML =
-              `<h3>${translations[lang].waitingOpponent}</h3>`;
-          } else {
-            document.getElementById("txt-setup-title").innerText =
-              translations[lang].setupTitle;
-            document.getElementById("txt-setup-desc").innerText =
-              translations[lang].setupDesc;
-            document.getElementById("send-secret-btn").innerText =
-              translations[lang].lockBtn;
-          }
-        }
+        const res = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const data = await res.json();
+        alert(data.message);
+      }
 
-        document.getElementById("txt-my-secret").innerText =
-          translations[lang].mySecret;
+      // Giriş Yapma İşlemi
+      async function login() {
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
+        const errorDiv = document.getElementById("auth-error");
 
-        if (myId) {
-          document.getElementById("role-badge").innerText =
-            translations[lang].playerInfo + myId;
-          if (
-            !document.getElementById("game-screen").classList.contains("hide")
-          ) {
-            const badge = document.getElementById("turn-badge");
-            badge.innerText = myTurn
-              ? translations[lang].yourTurn
-              : translations[lang].opponentTurn;
-          }
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          currentUsername = data.username;
+          document.getElementById("display-name").innerText = currentUsername;
+          showScreen("menu-screen");
         } else {
-          document.getElementById("role-badge").innerText =
-            translations[lang].connecting;
+          errorDiv.innerText = data.message;
         }
       }
 
-      socket.on("oyuncu_atandi", (data) => {
-        myId = data.oyuncu_id;
-        document.getElementById("role-badge").innerText =
-          translations[currentLang].playerInfo + myId;
-      });
-
-      function sendSecret() {
-        const val = document.getElementById("secret-input").value;
-
-        if (!checkNumberIsValid(val)) {
-          return alert(translations[currentLang].errValidation);
-        }
-
-        socket.emit("sayi_gonder", { sayi: val });
-        isWaitingMode = true;
-        document.getElementById("setup-screen").innerHTML =
-          `<h3>${translations[currentLang].waitingOpponent}</h3>`;
+      // Misafir Girişi İşlemi (Şifresiz rastgele isim üretme)
+      function loginAsGuest() {
+        const randomId = Math.floor(1000 + Math.random() * 9000);
+        currentUsername = `Misafir_${randomId}`;
+        document.getElementById("display-name").innerText = currentUsername;
+        showScreen("menu-screen");
       }
 
-      socket.on("oyun_basladi", (data) => {
-        document.getElementById("setup-screen").classList.add("hide");
-        document.getElementById("game-screen").classList.remove("hide");
-        document.getElementById("my-number-panel").classList.remove("hide");
-
-        mySecretNumber = myId === 1 ? data.o1_sayi : data.o2_sayi;
-        document.getElementById("secret-display").innerText = mySecretNumber;
-
-        updateTurn(data.sira);
-      });
-
-      function updateTurn(sira) {
-        myTurn = sira === myId;
-        const badge = document.getElementById("turn-badge");
-        badge.classList.remove("hide");
-
-        if (myTurn) {
-          badge.innerText = translations[currentLang].yourTurn;
-          badge.style.background = "#2ecc71";
-          document.getElementById("guess-input").disabled = false;
-          document.getElementById("send-guess-btn").disabled = false;
-        } else {
-          badge.innerText = translations[currentLang].opponentTurn;
-          badge.style.background = "#e74c3c";
-          document.getElementById("guess-input").disabled = true;
-          document.getElementById("send-guess-btn").disabled = true;
-        }
+      // Çıkış Yapma
+      function logout() {
+        currentUsername = "";
+        showScreen("auth-screen");
       }
 
-      function sendGuess() {
-        const val = document.getElementById("guess-input").value;
-
-        if (!checkNumberIsValid(val)) {
-          return alert(translations[currentLang].errValidation);
-        }
-
-        socket.emit("tahmin_gonder", { tahmin: val });
-        document.getElementById("guess-input").value = "";
+      // Eşleştirme Havuzuna Girme
+      function startMatchmaking() {
+        showScreen("loading-screen");
+        socket.emit("find_match", { username: currentUsername });
       }
 
-      socket.on("tahmin_sonuc", (data) => {
-        const card = document.createElement("div");
-        card.className = "history-card slide-in";
-        card.innerHTML = `<span class="num">${data.tahmin}</span> <span class="res">${data.sonuc}</span>`;
-
-        const targetList = data.tahmin_eden === 1 ? "p1-history" : "p2-history";
-        document.getElementById(targetList).prepend(card);
-
-        updateTurn(data.yeni_sira);
+      // SOCKET DINLEYICILERI
+      socket.on("waiting_for_match", function (data) {
+        document.getElementById("loading-text").innerText = data.message;
       });
 
-      socket.on("oyun_bitti", (data) => {
-        document.getElementById("game-screen").classList.add("hide");
-        document.getElementById("win-screen").classList.remove("hide");
-        document.getElementById("win-message").innerText =
-          data.kazanan === myId
-            ? translations[currentLang].winMsg
-            : translations[currentLang].loseMsg;
-      });
-
-      socket.on("hata_mesaji", (data) => {
-        alert(currentLang === "tr" ? data.mesaj_tr : data.mesaj_en);
-      });
-
-      socket.on("oyun_sifirlandi", () => {
-        location.reload();
+      socket.on("match_found", function (data) {
+        currentRoom = data.room_id;
+        document.getElementById("opponent-name").innerText = data.opponent;
+        document.getElementById("room-display").innerText = data.room_id;
+        showScreen("game-screen");
       });
     </script>
   </body>
