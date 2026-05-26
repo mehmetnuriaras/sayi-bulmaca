@@ -1,398 +1,293 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4 Haneli Sayı Bulmaca - Multiplayer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sayı Bulmaca - Pro</title>
+    <script src="https://cdn.socketio.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
-            --bg-color: #1e1e2e;
-            --card-bg: #252538;
-            --accent-color: #ff79c6;
-            --text-color: #f8f8f2;
-            --button-bg: #6272a4;
-            --button-hover: #bd93f9;
-            --success-color: #50fa7b;
-            --error-color: #ff5555;
+      /* Modern Karanlık Tema Tasarımı [13, 14] */
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #1a1a2e;
+        color: #fff;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+      }
+      .screen {
+        display: none;
+        max-width: 500px;
+        margin: 0 auto;
+        background: #16213e;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      button {
+        background: #e94560;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 10px;
+        transition: 0.3s;
+      }
+      button:hover {
+        background: #ff4d6d;
+        transform: scale(1.05);
+      }
+      input {
+        padding: 12px;
+        border-radius: 8px;
+        border: none;
+        width: 80%;
+        margin: 10px;
+        font-size: 18px;
+        text-align: center;
+      }
+
+      /* 1. İyileştirme: Kendi Sayım Göstergesi */
+      .my-secret-display {
+        background: #0f3460;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #e94560;
+      }
+      #display-my-secret-number {
+        font-weight: bold;
+        color: #e94560;
+        font-size: 20px;
+        letter-spacing: 3px;
+      }
+
+      /* 2. İyileştirme: Rakam Notları Tasarımı */
+      .notes-grid {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+      }
+      .note-box {
+        width: 38px;
+        height: 38px;
+        border: 2px solid #533483;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: 0.2s;
+        background: #1a1a2e;
+      }
+      .state-yellow {
+        background: #fbc02d !important;
+        color: #000;
+      }
+      .state-red {
+        background: #d32f2f !important;
+        color: #fff;
+      }
+      .state-green {
+        background: #388e3c !important;
+        color: #fff;
+      }
+
+      .history-item {
+        display: flex;
+        justify-content: space-between;
+        background: #0f3460;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 8px;
+        animation: slideIn 0.4s ease;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(-20px);
+          opacity: 0;
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        to {
+          transform: translateX(0);
+          opacity: 1;
         }
-
-        .container {
-            background-color: var(--card-bg);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            width: 95%;
-            max-width: 450px;
-            text-align: center;
-            border: 2px solid var(--button-bg);
-            box-sizing: border-box;
-        }
-
-        h2, h3 {
-            color: var(--accent-color);
-            margin-top: 0;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #aeaebe;
-        }
-
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--button-bg);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            box-sizing: border-box;
-            font-size: 16px;
-            text-align: center;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            background-color: var(--button-bg);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            margin-top: 10px;
-        }
-
-        button:hover {
-            background-color: var(--button-hover);
-        }
-
-        .btn-guest {
-            background-color: transparent;
-            border: 2px solid var(--accent-color);
-            color: var(--accent-color);
-        }
-
-        .btn-guest:hover {
-            background-color: var(--accent-color);
-            color: var(--bg-color);
-        }
-
-        .switch-mode {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #aeaebe;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .alert {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            display: none;
-        }
-        .alert-error { background-color: var(--error-color); color: white; }
-        .alert-success { background-color: var(--success-color); color: var(--bg-color); }
-
-        .screen { display: none; }
-        .active { display: block; }
-
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.1);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border-left-color: var(--accent-color);
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Oyun Tahtası Alanı */
-        .game-logs {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            gap: 10px;
-        }
-
-        .log-box {
-            background: var(--bg-color);
-            width: 50%;
-            padding: 10px;
-            border-radius: 8px;
-            height: 200px;
-            overflow-y: auto;
-            font-size: 13px;
-            text-align: left;
-            border: 1px solid #44475a;
-        }
-
-        .log-box h4 {
-            margin: 0 0 8px 0;
-            color: var(--accent-color);
-            border-bottom: 1px solid #44475a;
-            padding-bottom: 3px;
-            text-align: center;
-        }
-
-        .log-item {
-            padding: 3px 0;
-            border-bottom: 1px dashed #282a36;
-        }
-
-        .badge-plus { color: var(--success-color); font-weight: bold; }
-        .badge-minus { color: var(--error-color); font-weight: bold; }
+      }
     </style>
-</head>
-<body>
-
-    <div id="auth-screen" class="container screen active">
-        <h2 id="auth-title">Giriş Yap</h2>
-        <div id="auth-alert" class="alert"></div>
-        
-        <div class="form-group">
-            <label for="username">Kullanıcı Adı</label>
-            <input type="text" id="username" placeholder="Kullanıcı adınız">
-        </div>
-        <div class="form-group">
-            <label for="password">Şifre</label>
-            <input type="password" id="password" placeholder="Şifreniz">
-        </div>
-
-        <button id="btn-primary" onclick="submitAuth()">Giriş Yap</button>
-        <button class="btn-guest" onclick="guestLogin()">Misafir Olarak Oyna</button>
-        
-        <p id="switch-text" class="switch-mode" onclick="toggleAuthMode()">Hesabınız yok mu? Kayıt Olun</p>
+  </head>
+  <body>
+    <!-- GİRİŞ EKRANI -->
+    <div id="auth-screen" class="screen" style="display: block">
+      <h2>Sayı Bulmaca</h2>
+      <button onclick="guestLogin()">Misafir Olarak Oyna</button>
     </div>
 
-    <div id="menu-screen" class="container screen">
-        <h2>Hoş Geldin!</h2>
-        <h3 id="display-username" style="color: var(--success-color);">...</h3>
-        <p>Çevrimiçi rakiplerle eşleşmek ve savaşa başlamak için hazır ol!</p>
-        <button onclick="findMatch()">Oyun Bul (Eşleş)</button>
+    <!-- MENÜ EKRANI -->
+    <div id="menu-screen" class="screen">
+      <h3 id="welcome-msg">Hoş Geldin!</h3>
+      <button onclick="findMatch()">Oyun Bul</button>
     </div>
 
-    <div id="loading-screen" class="container screen">
-        <h2>Rakip Aranıyor...</h2>
-        <div class="spinner"></div>
-        <p>Havuzdaki diğer bir oyuncunun bağlanması bekleniyor.</p>
+    <!-- YÜKLEME EKRANI -->
+    <div id="loading-screen" class="screen">
+      <div class="spinner"></div>
+      <p>Rakip Aranıyor...</p>
     </div>
 
-    <div id="setup-screen" class="container screen">
-        <h2>Rakip Bulundu!</h2>
-        <p>Rakibin: <strong id="setup-opponent" style="color: var(--accent-color);"></strong></p>
-        <hr style="border-color: #44475a;">
-        <p style="font-size: 14px; color: #aeaebe;">Rakibinizin tahmin etmesi için 4 haneli, rakamları farklı ve 0 ile başlamayan gizli bir sayı belirleyin.</p>
-        
-        <div class="form-group">
-            <input type="text" id="secret-input" maxlength="4" placeholder="Örn: 5824">
-        </div>
-        <button id="btn-set-number" onclick="sendSecretNumber()">Sayıyı Kilitle ve Onayla</button>
-        <p id="setup-waiting-text" style="display:none; color: var(--button-hover); font-style: italic;">Sayı onaylandı. Rakibin sayısını seçmesi bekleniyor...</p>
+    <!-- SAYI BELİRLEME EKRANI -->
+    <div id="set-number-screen" class="screen">
+      <h3>Gizli Sayını Belirle</h3>
+      <p>4 haneli, rakamları farklı, 0 ile başlamayan bir sayı gir.</p>
+      <input
+        type="text"
+        id="secret-input"
+        maxlength="4"
+        placeholder="Örn: 1234"
+      />
+      <button onclick="lockNumber()">Sayımı Kilitle</button>
     </div>
 
-    <div id="game-screen" class="container screen">
-        <h3>Oyun Alanı</h3>
-        <p>Rakip: <strong id="game-opponent" style="color: var(--accent-color);"></strong></p>
-        
-        <div id="turn-badge" style="padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold;"></div>
+    <!-- OYUN EKRANI -->
+    <div id="game-screen" class="screen">
+      <div class="my-secret-display">
+        <span>Senin Sayın: </span
+        ><span id="display-my-secret-number">----</span>
+      </div>
 
-        <div id="guess-action-area">
-            <div class="form-group">
-                <input type="text" id="guess-input" maxlength="4" placeholder="4 Haneli Tahminin">
-            </div>
-            <button onclick="sendGuess()">Tahmini Gönder</button>
-        </div>
+      <div
+        id="turn-info"
+        style="color: #e94560; font-weight: bold; margin-bottom: 10px"
+      >
+        Sıra Bekleniyor...
+      </div>
 
-        <div class="game-logs">
-            <div class="log-box">
-                <h4>Senin Hamlelerin</h4>
-                <div id="my-guesses"></div>
-            </div>
-            <div class="log-box">
-                <h4>Rakibin Hamleleri</h4>
-                <div id="opponent-guesses"></div>
-            </div>
-        </div>
+      <!-- Rakam Notları Paneli -->
+      <div class="notes-grid">
+        <div class="note-box" onclick="cycleColor(this)">0</div>
+        <div class="note-box" onclick="cycleColor(this)">1</div>
+        <div class="note-box" onclick="cycleColor(this)">2</div>
+        <div class="note-box" onclick="cycleColor(this)">3</div>
+        <div class="note-box" onclick="cycleColor(this)">4</div>
+        <div class="note-box" onclick="cycleColor(this)">5</div>
+        <div class="note-box" onclick="cycleColor(this)">6</div>
+        <div class="note-box" onclick="cycleColor(this)">7</div>
+        <div class="note-box" onclick="cycleColor(this)">8</div>
+        <div class="note-box" onclick="cycleColor(this)">9</div>
+      </div>
+
+      <div id="guess-area" style="display: none">
+        <input
+          type="text"
+          id="guess-input"
+          maxlength="4"
+          placeholder="Tahminin?"
+        />
+        <button onclick="sendGuess()">Gönder</button>
+      </div>
+
+      <div id="game-history" style="text-align: left; margin-top: 20px"></div>
     </div>
 
     <script>
-        const socket = io();
-        let currentMode = 'login';
-        let myUsername = '';
-        let currentRoom = '';
+      const socket = io();
+      let myUsername = "";
+      let myRoom = "";
+      let mySecretNumber = "";
 
-        function toggleAuthMode() {
-            const title = document.getElementById('auth-title');
-            const btn = document.getElementById('btn-primary');
-            const switchTxt = document.getElementById('switch-text');
-            document.getElementById('auth-alert').style.display = 'none';
+      function showScreen(id) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => (s.style.display = "none"));
+        document.getElementById(id).style.display = "block";
+      }
 
-            if (currentMode === 'login') {
-                currentMode = 'register';
-                title.innerText = 'Kayıt Ol'; btn.innerText = 'Kayıt Ol';
-                switchTxt.innerText = 'Zaten hesabınız var mı? Giriş Yapın';
-            } else {
-                currentMode = 'login';
-                title.innerText = 'Giriş Yap'; btn.innerText = 'Giriş Yap';
-                switchTxt.innerText = 'Hesabınız yok mu? Kayıt Olun';
-            }
+      function guestLogin() {
+        socket.emit("misafir_girisi");
+      }
+
+      socket.on("giris_basarili", (data) => {
+        myUsername = data.username;
+        document.getElementById("welcome-msg").innerText =
+          "Hoş Geldin, " + myUsername;
+        showScreen("menu-screen");
+      });
+
+      function findMatch() {
+        showScreen("loading-screen");
+        socket.emit("oyun_bul", { username: myUsername });
+      }
+
+      socket.on("match_found", (data) => {
+        myRoom = data.room;
+        showScreen("set-number-screen");
+      });
+
+      function lockNumber() {
+        const num = document.getElementById("secret-input").value;
+        mySecretNumber = num;
+        socket.emit("sayi_kilitle", { room: myRoom, sayi: num });
+        document.getElementById("set-number-screen").innerHTML =
+          "<h3>Sayı Kilitlendi!</h3><p>Rakip bekleniyor...</p>";
+      }
+
+      socket.on("oyun_basladi", (data) => {
+        showScreen("game-screen");
+        // 1. İyileştirme: Kendi sayısını ekrana yazdır
+        document.getElementById("display-my-secret-number").innerText =
+          mySecretNumber;
+        updateTurn(data.turn);
+      });
+
+      function updateTurn(turn) {
+        const info = document.getElementById("turn-info");
+        const area = document.getElementById("guess-area");
+        if (turn === myUsername) {
+          info.innerText = "SIRA SENDE!";
+          area.style.display = "block";
+        } else {
+          info.innerText = "RAKİBİN HAMLESİ BEKLENİYOR...";
+          area.style.display = "none";
         }
+      }
 
-        function showAlert(message, isSuccess = false) {
-            const alertDiv = document.getElementById('auth-alert');
-            alertDiv.innerText = message;
-            alertDiv.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
-            alertDiv.style.display = 'block';
+      function sendGuess() {
+        const g = document.getElementById("guess-input").value;
+        socket.emit("tahmin_gonder", {
+          room: myRoom,
+          tahmin: g,
+          username: myUsername,
+        });
+        document.getElementById("guess-input").value = "";
+      }
+
+      socket.on("tahmin_sonuc", (data) => {
+        const hist = document.getElementById("game-history");
+        hist.innerHTML =
+          `<div class="history-item"><span>${data.player}: ${data.tahmin}</span> <b>${data.sonuc}</b></div>` +
+          hist.innerHTML;
+        updateTurn(data.next_turn);
+      });
+
+      // 2. İyileştirme: Renk değiştirme mantığı
+      function cycleColor(el) {
+        if (el.classList.contains("state-yellow")) {
+          el.classList.remove("state-yellow");
+          el.classList.add("state-red");
+        } else if (el.classList.contains("state-red")) {
+          el.classList.remove("state-red");
+          el.classList.add("state-green");
+        } else if (el.classList.contains("state-green")) {
+          el.classList.remove("state-green");
+        } else {
+          el.classList.add("state-yellow");
         }
+      }
 
-        function submitAuth() {
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            if(currentMode === 'register') {
-                socket.emit('register', {username: u, password: p});
-            } else {
-                socket.emit('login', {username: u, password: p});
-            }
-        }
-
-        function guestLogin() { socket.emit('guest_login'); }
-        function findMatch() { showScreen('loading-screen'); socket.emit('find_match', {username: myUsername}); }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        }
-
-        // --- SOKET DINLEYICILERI VE MEKANIKLER ---
-
-        socket.on('auth_response', (data) => {
-            showAlert(data.message, data.success);
-            if(data.success && currentMode === 'register') toggleAuthMode();
-        });
-
-        socket.on('login_response', (data) => {
-            if(data.success) {
-                myUsername = data.username;
-                document.getElementById('display-username').innerText = myUsername;
-                showScreen('menu-screen');
-            } else {
-                showAlert(data.message, false);
-            }
-        });
-
-        socket.on('match_found', (data) => {
-            currentRoom = data.room_id;
-            document.getElementById('setup-opponent').innerText = data.opponent;
-            document.getElementById('game-opponent').innerText = data.opponent;
-            
-            // Ekran durumlarını temizle ve kurulum ekranına geç
-            document.getElementById('secret-input').value = '';
-            document.getElementById('btn-set-number').style.display = 'block';
-            document.getElementById('setup-waiting-text').style.display = 'none';
-            showScreen('setup-screen');
-        });
-
-        function sendSecretNumber() {
-            const num = document.getElementById('secret-input').value;
-            if(num.length !== 4 || new Set(num).size !== 4 || num[0] === '0') {
-                alert("Hatalı Giriş! Sayı 4 haneli, rakamları farklı olmalı ve 0 ile başlamamalıdır.");
-                return;
-            }
-            socket.emit('set_number', {room_id: currentRoom, number: num});
-            document.getElementById('btn-set-number').style.display = 'none';
-            document.getElementById('setup-waiting-text').style.display = 'block';
-        }
-
-        socket.on('game_start_turns', (data) => {
-            document.getElementById('my-guesses').innerHTML = '';
-            document.getElementById('opponent-guesses').innerHTML = '';
-            document.getElementById('guess-input').value = '';
-            showScreen('game-screen');
-            updateTurnUI(data.current_turn);
-        });
-
-        function updateTurnUI(currentTurnSid) {
-            const turnBadge = document.getElementById('turn-badge');
-            const actionArea = document.getElementById('guess-action-area');
-            
-            if(currentTurnSid === socket.id) {
-                turnBadge.innerText = "SIRA SİZDE! Tahmin yapabilirsiniz.";
-                turnBadge.style.backgroundColor = "var(--success-color)";
-                turnBadge.style.color = "var(--bg-color)";
-                actionArea.style.opacity = "1";
-                actionArea.style.pointerEvents = "auto";
-            } else {
-                turnBadge.innerText = "RAKİBİN SIRASI... Bekleniyor.";
-                turnBadge.style.backgroundColor = "var(--button-bg)";
-                turnBadge.style.color = "white";
-                actionArea.style.opacity = "0.5";
-                actionArea.style.pointerEvents = "none";
-            }
-        }
-
-        function sendGuess() {
-            const g = document.getElementById('guess-input').value;
-            if(g.length !== 4 || new Set(g).size !== 4 || g[0] === '0') {
-                alert("Geçersiz Tahmin! 4 haneli, rakamları farklı ve 0 ile başlamayan bir sayı girin.");
-                return;
-            }
-            socket.emit('make_guess', {room_id: currentRoom, guess: g});
-            document.getElementById('guess-input').value = '';
-        }
-
-        socket.on('guess_result', (data) => {
-            const targetDivId = (data.player_sid === socket.id) ? 'my-guesses' : 'opponent-guesses';
-            const logBox = document.getElementById(targetDivId);
-            
-            // İpucu tasarımını renklendir (+ ve - durumları)
-            const plusBadge = `<span class="badge-plus">${data.plus}</span>`;
-            const minusBadge = `<span class="badge-minus">${data.minus}</span>`;
-
-            logBox.innerHTML += `<div class="log-item"><strong>${data.guess}</strong> -> ${plusBadge} ${minusBadge}</div>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        });
-
-        socket.on('turn_update', (data) => {
-            updateTurnUI(data.current_turn);
-        });
-
-        socket.on('game_error', (data) => {
-            alert(data.message);
-        });
-
-        socket.on('game_over', (data) => {
-            alert("OYUN BİTTİ!\n\n" + data.message);
-            showScreen('menu-screen');
-        });
-
-        socket.on('opponent_left', (data) => {
-            alert(data.message);
-            showScreen('menu-screen');
-        });
+      socket.on("hata", (data) => alert(data.msg));
     </script>
-</body>
+  </body>
 </html>
