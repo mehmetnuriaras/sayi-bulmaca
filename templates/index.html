@@ -1,398 +1,295 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4 Haneli Sayı Bulmaca - Multiplayer</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>4 Haneli Sayı Bulmaca Oyunu</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
     <style>
-        :root {
-            --bg-color: #1e1e2e;
-            --card-bg: #252538;
-            --accent-color: #ff79c6;
-            --text-color: #f8f8f2;
-            --button-bg: #6272a4;
-            --button-hover: #bd93f9;
-            --success-color: #50fa7b;
-            --error-color: #ff5555;
+      :root {
+        --bg-color: #1e1e2e;
+        --card-bg: #252538;
+        --accent-color: #ff79c6;
+        --text-color: #f8f8f2;
+        --button-bg: #6272a4;
+        --button-hover: #bd93f9;
+        --success-color: #50fa7b;
+        --error-color: #ff5555;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      .container {
+        background-color: var(--card-bg);
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        width: 90%;
+        max-width: 400px;
+        text-align: center;
+        border: 2px solid var(--button-bg);
+      }
+
+      h2,
+      h3 {
+        color: var(--accent-color);
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+        text-align: left;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #aeaebe;
+      }
+
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--button-bg);
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        border: none;
+        background-color: var(--button-bg);
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background-color: var(--button-hover);
+      }
+
+      .btn-guest {
+        background-color: transparent;
+        border: 2px solid var(--accent-color);
+        color: var(--accent-color);
+      }
+
+      .btn-guest:hover {
+        background-color: var(--accent-color);
+        color: var(--bg-color);
+      }
+
+      .switch-mode {
+        margin-top: 15px;
+        font-size: 14px;
+        color: #aeaebe;
+        cursor: pointer;
+        text-decoration: underline;
+      }
+
+      .alert {
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        font-size: 14px;
+        display: none;
+      }
+      .alert-error {
+        background-color: var(--error-color);
+        color: white;
+      }
+      .alert-success {
+        background-color: var(--success-color);
+        color: var(--bg-color);
+      }
+
+      /* Ekran Gizleme Sınıfı */
+      .screen {
+        display: none;
+      }
+      .active {
+        display: block;
+      }
+
+      /* Yükleniyor Ekranı Animasyonu */
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border-left-color: var(--accent-color);
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
         }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        100% {
+          transform: rotate(360deg);
         }
-
-        .container {
-            background-color: var(--card-bg);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            width: 95%;
-            max-width: 450px;
-            text-align: center;
-            border: 2px solid var(--button-bg);
-            box-sizing: border-box;
-        }
-
-        h2, h3 {
-            color: var(--accent-color);
-            margin-top: 0;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #aeaebe;
-        }
-
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--button-bg);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            box-sizing: border-box;
-            font-size: 16px;
-            text-align: center;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            background-color: var(--button-bg);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s ease;
-            margin-top: 10px;
-        }
-
-        button:hover {
-            background-color: var(--button-hover);
-        }
-
-        .btn-guest {
-            background-color: transparent;
-            border: 2px solid var(--accent-color);
-            color: var(--accent-color);
-        }
-
-        .btn-guest:hover {
-            background-color: var(--accent-color);
-            color: var(--bg-color);
-        }
-
-        .switch-mode {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #aeaebe;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .alert {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            display: none;
-        }
-        .alert-error { background-color: var(--error-color); color: white; }
-        .alert-success { background-color: var(--success-color); color: var(--bg-color); }
-
-        .screen { display: none; }
-        .active { display: block; }
-
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.1);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border-left-color: var(--accent-color);
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Oyun Tahtası Alanı */
-        .game-logs {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            gap: 10px;
-        }
-
-        .log-box {
-            background: var(--bg-color);
-            width: 50%;
-            padding: 10px;
-            border-radius: 8px;
-            height: 200px;
-            overflow-y: auto;
-            font-size: 13px;
-            text-align: left;
-            border: 1px solid #44475a;
-        }
-
-        .log-box h4 {
-            margin: 0 0 8px 0;
-            color: var(--accent-color);
-            border-bottom: 1px solid #44475a;
-            padding-bottom: 3px;
-            text-align: center;
-        }
-
-        .log-item {
-            padding: 3px 0;
-            border-bottom: 1px dashed #282a36;
-        }
-
-        .badge-plus { color: var(--success-color); font-weight: bold; }
-        .badge-minus { color: var(--error-color); font-weight: bold; }
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div id="auth-screen" class="container screen active">
-        <h2 id="auth-title">Giriş Yap</h2>
-        <div id="auth-alert" class="alert"></div>
-        
-        <div class="form-group">
-            <label for="username">Kullanıcı Adı</label>
-            <input type="text" id="username" placeholder="Kullanıcı adınız">
-        </div>
-        <div class="form-group">
-            <label for="password">Şifre</label>
-            <input type="password" id="password" placeholder="Şifreniz">
-        </div>
+      <h2 id="auth-title">Giriş Yap</h2>
+      <div id="auth-alert" class="alert"></div>
 
-        <button id="btn-primary" onclick="submitAuth()">Giriş Yap</button>
-        <button class="btn-guest" onclick="guestLogin()">Misafir Olarak Oyna</button>
-        
-        <p id="switch-text" class="switch-mode" onclick="toggleAuthMode()">Hesabınız yok mu? Kayıt Olun</p>
+      <div class="form-group">
+        <label for="username">Kullanıcı Adı</label>
+        <input
+          type="text"
+          id="username"
+          placeholder="Kullanıcı adınızı girin"
+        />
+      </div>
+      <div class="form-group">
+        <label for="password">Şifre</label>
+        <input type="password" id="password" placeholder="Şifrenizi girin" />
+      </div>
+
+      <button id="btn-primary" onclick="submitAuth()">Giriş Yap</button>
+      <button class="btn-guest" onclick="guestLogin()">
+        Misafir Olarak Oyna
+      </button>
+
+      <p id="switch-text" class="switch-mode" onclick="toggleAuthMode()">
+        Hesabınız yok mu? Kayıt Olun
+      </p>
     </div>
 
     <div id="menu-screen" class="container screen">
-        <h2>Hoş Geldin!</h2>
-        <h3 id="display-username" style="color: var(--success-color);">...</h3>
-        <p>Çevrimiçi rakiplerle eşleşmek ve savaşa başlamak için hazır ol!</p>
-        <button onclick="findMatch()">Oyun Bul (Eşleş)</button>
+      <h2>Hoş Geldin!</h2>
+      <h3 id="display-username">...</h3>
+      <p>
+        Oyuncularla anlık eşleşmek ve sayı bulmaca savaşına başlamak için hazır
+        ol!
+      </p>
+      <button onclick="findMatch()">Oyun Bul</button>
     </div>
 
     <div id="loading-screen" class="container screen">
-        <h2>Rakip Aranıyor...</h2>
-        <div class="spinner"></div>
-        <p>Havuzdaki diğer bir oyuncunun bağlanması bekleniyor.</p>
-    </div>
-
-    <div id="setup-screen" class="container screen">
-        <h2>Rakip Bulundu!</h2>
-        <p>Rakibin: <strong id="setup-opponent" style="color: var(--accent-color);"></strong></p>
-        <hr style="border-color: #44475a;">
-        <p style="font-size: 14px; color: #aeaebe;">Rakibinizin tahmin etmesi için 4 haneli, rakamları farklı ve 0 ile başlamayan gizli bir sayı belirleyin.</p>
-        
-        <div class="form-group">
-            <input type="text" id="secret-input" maxlength="4" placeholder="Örn: 5824">
-        </div>
-        <button id="btn-set-number" onclick="sendSecretNumber()">Sayıyı Kilitle ve Onayla</button>
-        <p id="setup-waiting-text" style="display:none; color: var(--button-hover); font-style: italic;">Sayı onaylandı. Rakibin sayısını seçmesi bekleniyor...</p>
+      <h2>Rakip Aranıyor...</h2>
+      <div class="spinner"></div>
+      <p>Lütfen diğer bir oyuncunun bağlanmasını bekleyin.</p>
     </div>
 
     <div id="game-screen" class="container screen">
-        <h3>Oyun Alanı</h3>
-        <p>Rakip: <strong id="game-opponent" style="color: var(--accent-color);"></strong></p>
-        
-        <div id="turn-badge" style="padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold;"></div>
-
-        <div id="guess-action-area">
-            <div class="form-group">
-                <input type="text" id="guess-input" maxlength="4" placeholder="4 Haneli Tahminin">
-            </div>
-            <button onclick="sendGuess()">Tahmini Gönder</button>
-        </div>
-
-        <div class="game-logs">
-            <div class="log-box">
-                <h4>Senin Hamlelerin</h4>
-                <div id="my-guesses"></div>
-            </div>
-            <div class="log-box">
-                <h4>Rakibin Hamleleri</h4>
-                <div id="opponent-guesses"></div>
-            </div>
-        </div>
+      <h2>Oyun Başladı!</h2>
+      <p>
+        Rakibiniz:
+        <strong id="opponent-name" style="color: var(--accent-color)"></strong>
+      </p>
+      <div id="turn-info" style="font-weight: bold; margin-bottom: 15px"></div>
     </div>
 
     <script>
-        const socket = io();
-        let currentMode = 'login';
-        let myUsername = '';
-        let currentRoom = '';
+      const socket = io();
+      let currentMode = "login"; // 'login' veya 'register'
+      let myUsername = "";
+      let currentRoom = "";
 
-        function toggleAuthMode() {
-            const title = document.getElementById('auth-title');
-            const btn = document.getElementById('btn-primary');
-            const switchTxt = document.getElementById('switch-text');
-            document.getElementById('auth-alert').style.display = 'none';
+      function toggleAuthMode() {
+        const title = document.getElementById("auth-title");
+        const btn = document.getElementById("btn-primary");
+        const switchTxt = document.getElementById("switch-text");
+        const alertDiv = document.getElementById("auth-alert");
+        alertDiv.style.display = "none";
 
-            if (currentMode === 'login') {
-                currentMode = 'register';
-                title.innerText = 'Kayıt Ol'; btn.innerText = 'Kayıt Ol';
-                switchTxt.innerText = 'Zaten hesabınız var mı? Giriş Yapın';
-            } else {
-                currentMode = 'login';
-                title.innerText = 'Giriş Yap'; btn.innerText = 'Giriş Yap';
-                switchTxt.innerText = 'Hesabınız yok mu? Kayıt Olun';
-            }
+        if (currentMode === "login") {
+          currentMode = "register";
+          title.innerText = "Kayıt Ol";
+          btn.innerText = "Kayıt Ol";
+          switchTxt.innerText = "Zaten hesabınız var mı? Giriş Yapın";
+        } else {
+          currentMode = "login";
+          title.innerText = "Giriş Yap";
+          btn.innerText = "Giriş Yap";
+          switchTxt.innerText = "Hesabınız yok mu? Kayıt Olun";
         }
+      }
 
-        function showAlert(message, isSuccess = false) {
-            const alertDiv = document.getElementById('auth-alert');
-            alertDiv.innerText = message;
-            alertDiv.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
-            alertDiv.style.display = 'block';
+      function showAlert(message, isSuccess = false) {
+        const alertDiv = document.getElementById("auth-alert");
+        alertDiv.innerText = message;
+        alertDiv.className = `alert ${isSuccess ? "alert-success" : "alert-error"}`;
+        alertDiv.style.display = "block";
+      }
+
+      function submitAuth() {
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
+
+        if (currentMode === "register") {
+          socket.emit("register", { username: u, password: p });
+        } else {
+          socket.emit("login", { username: u, password: p });
         }
+      }
 
-        function submitAuth() {
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            if(currentMode === 'register') {
-                socket.emit('register', {username: u, password: p});
-            } else {
-                socket.emit('login', {username: u, password: p});
-            }
+      function guestLogin() {
+        socket.emit("guest_login");
+      }
+
+      function findMatch() {
+        showScreen("loading-screen");
+        socket.emit("find_match", { username: myUsername });
+      }
+
+      function showScreen(screenId) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(screenId).classList.add("active");
+      }
+
+      // --- SOKET GERİ BİLDİRİMLERİ ---
+
+      socket.on("auth_response", (data) => {
+        showAlert(data.message, data.success);
+        if (data.success && currentMode === "register") {
+          toggleAuthMode(); // Kayıt başarılıysa giriş moduna otomatik at
         }
+      });
 
-        function guestLogin() { socket.emit('guest_login'); }
-        function findMatch() { showScreen('loading-screen'); socket.emit('find_match', {username: myUsername}); }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+      socket.on("login_response", (data) => {
+        if (data.success) {
+          myUsername = data.username;
+          document.getElementById("display-username").innerText = myUsername;
+          showScreen("menu-screen");
+        } else {
+          showAlert(data.message, false);
         }
+      });
 
-        // --- SOKET DINLEYICILERI VE MEKANIKLER ---
-
-        socket.on('auth_response', (data) => {
-            showAlert(data.message, data.success);
-            if(data.success && currentMode === 'register') toggleAuthMode();
-        });
-
-        socket.on('login_response', (data) => {
-            if(data.success) {
-                myUsername = data.username;
-                document.getElementById('display-username').innerText = myUsername;
-                showScreen('menu-screen');
-            } else {
-                showAlert(data.message, false);
-            }
-        });
-
-        socket.on('match_found', (data) => {
-            currentRoom = data.room_id;
-            document.getElementById('setup-opponent').innerText = data.opponent;
-            document.getElementById('game-opponent').innerText = data.opponent;
-            
-            // Ekran durumlarını temizle ve kurulum ekranına geç
-            document.getElementById('secret-input').value = '';
-            document.getElementById('btn-set-number').style.display = 'block';
-            document.getElementById('setup-waiting-text').style.display = 'none';
-            showScreen('setup-screen');
-        });
-
-        function sendSecretNumber() {
-            const num = document.getElementById('secret-input').value;
-            if(num.length !== 4 || new Set(num).size !== 4 || num[0] === '0') {
-                alert("Hatalı Giriş! Sayı 4 haneli, rakamları farklı olmalı ve 0 ile başlamamalıdır.");
-                return;
-            }
-            socket.emit('set_number', {room_id: currentRoom, number: num});
-            document.getElementById('btn-set-number').style.display = 'none';
-            document.getElementById('setup-waiting-text').style.display = 'block';
-        }
-
-        socket.on('game_start_turns', (data) => {
-            document.getElementById('my-guesses').innerHTML = '';
-            document.getElementById('opponent-guesses').innerHTML = '';
-            document.getElementById('guess-input').value = '';
-            showScreen('game-screen');
-            updateTurnUI(data.current_turn);
-        });
-
-        function updateTurnUI(currentTurnSid) {
-            const turnBadge = document.getElementById('turn-badge');
-            const actionArea = document.getElementById('guess-action-area');
-            
-            if(currentTurnSid === socket.id) {
-                turnBadge.innerText = "SIRA SİZDE! Tahmin yapabilirsiniz.";
-                turnBadge.style.backgroundColor = "var(--success-color)";
-                turnBadge.style.color = "var(--bg-color)";
-                actionArea.style.opacity = "1";
-                actionArea.style.pointerEvents = "auto";
-            } else {
-                turnBadge.innerText = "RAKİBİN SIRASI... Bekleniyor.";
-                turnBadge.style.backgroundColor = "var(--button-bg)";
-                turnBadge.style.color = "white";
-                actionArea.style.opacity = "0.5";
-                actionArea.style.pointerEvents = "none";
-            }
-        }
-
-        function sendGuess() {
-            const g = document.getElementById('guess-input').value;
-            if(g.length !== 4 || new Set(g).size !== 4 || g[0] === '0') {
-                alert("Geçersiz Tahmin! 4 haneli, rakamları farklı ve 0 ile başlamayan bir sayı girin.");
-                return;
-            }
-            socket.emit('make_guess', {room_id: currentRoom, guess: g});
-            document.getElementById('guess-input').value = '';
-        }
-
-        socket.on('guess_result', (data) => {
-            const targetDivId = (data.player_sid === socket.id) ? 'my-guesses' : 'opponent-guesses';
-            const logBox = document.getElementById(targetDivId);
-            
-            // İpucu tasarımını renklendir (+ ve - durumları)
-            const plusBadge = `<span class="badge-plus">${data.plus}</span>`;
-            const minusBadge = `<span class="badge-minus">${data.minus}</span>`;
-
-            logBox.innerHTML += `<div class="log-item"><strong>${data.guess}</strong> -> ${plusBadge} ${minusBadge}</div>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        });
-
-        socket.on('turn_update', (data) => {
-            updateTurnUI(data.current_turn);
-        });
-
-        socket.on('game_error', (data) => {
-            alert(data.message);
-        });
-
-        socket.on('game_over', (data) => {
-            alert("OYUN BİTTİ!\n\n" + data.message);
-            showScreen('menu-screen');
-        });
-
-        socket.on('opponent_left', (data) => {
-            alert(data.message);
-            showScreen('menu-screen');
-        });
+      socket.on("match_found", (data) => {
+        currentRoom = data.room_id;
+        document.getElementById("opponent-name").innerText = data.opponent;
+        document.getElementById("turn-info").innerText = data.your_turn
+          ? "Senin Sıran! Bir tahmin yap."
+          : "Rakibin Sırası... Bekleniyor.";
+        showScreen("game-screen");
+      });
     </script>
-</body>
+  </body>
 </html>
