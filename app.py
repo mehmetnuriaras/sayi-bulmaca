@@ -1,19 +1,20 @@
 import os
 import random
 import sqlite3
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'gizli_oyun_anahtari_1234'
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['SECRET_KEY'] = 'sayi_bulmaca_gizli_anahtar'
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-DATABASE = 'oyun.db'
+# Eşleştirme Havuzu ve Aktif Oyun Odaları
+waiting_players = []  # [{'sid': ..., 'username': ...}]
+active_games = {}     # {room_id: {p1_sid: p1_name, p2_sid: p2_name, 'numbers': {...}, 'turns': ...}}
 
-# 1. Veritabanı Kurulumu ve İleriye Dönük Alanlar
 def init_db():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect('oyun.db')
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -30,113 +31,90 @@ def init_db():
 
 init_db()
 
-# 2. Eşleştirme (Matchmaking) Havuzu Değişkenleri
-# { socket_id: username } şeklinde oyuncuları tutacağız
-waiting_players = {} 
-# Aktif oyun odaları ve odadaki oyuncuların durumları
-active_games = {} 
-
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# 3. HTTP API: Kayıt Olma ve Giriş Yapma
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
+# --- HESAP VE GİRİŞ SİSTEMİ SOKETLERİ ---
+
+@socketio.on('register')
+def handle_register(data):
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
     
     if not username or not password:
-        return jsonify({'success': False, 'message': 'Kullanıcı adı veya şifre boş olamaz.'}), 400
-        
+        emit('auth_response', {'success': False, 'message': 'Kullanıcı adı ve şifre boş olamaz.'})
+        return
+
     hashed_password = generate_password_hash(password)
-    
     try:
-        conn = get_db_connection()
+        conn = sqlite3.connect('oyun.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
         conn.commit()
         conn.close()
-        return jsonify({'success': True, 'message': 'Kayıt başarıyla oluşturuldu.'})
+        emit('auth_response', {'success': True, 'message': 'Kayıt başarılı! Giriş yapabilirsiniz.'})
     except sqlite3.IntegrityError:
-        return jsonify({'success': False, 'message': 'Bu kullanıcı adı zaten alınmış.'}), 400
+        emit('auth_response', {'success': False, 'message': 'Bu kullanıcı adı zaten alınmış.'})
 
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
+@socketio.on('login')
+def handle_login(data):
     username = data.get('username', '').strip()
     password = data.get('password', '').strip()
-    
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+
+    conn = sqlite3.connect('oyun.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT password FROM users WHERE username = ?', (username,))
+    row = cursor.fetchone()
     conn.close()
-    
-    if user and check_password_hash(user['password'], password):
-        return jsonify({'success': True, 'username': user['username']})
+
+    if row and check_password_hash(row[0], password):
+        emit('login_response', {'success': True, 'username': username})
     else:
-        return jsonify({'success': False, 'message': 'Hatalı kullanıcı adı veya şifre.'}), 401
+        emit('login_response', {'success': False, 'message': 'Hatalı kullanıcı adı veya şifre!'})
 
-# 4. Socket.IO: Anlık Eşleştirme ve Oyun Yönetimi
-@socketio.on('connect')
-def handle_connect():
-    print(f"Yeni bir cihaz bağlandı: {request.sid}")
+@socketio.on('guest_login')
+def handle_guest_login():
+    guest_num = random.randint(1000, 9999)
+    guest_name = f"Misafir_{guest_num}"
+    emit('login_response', {'success': True, 'username': guest_name})
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    # Oyuncu havuzda beklerken çıkarsa havuzdan temizle
-    if request.sid in waiting_players:
-        print(f"Bekleyen oyuncu ayrıldı: {waiting_players[request.sid]}")
-        del waiting_players[request.sid]
+# --- EŞLEŞTİRME (MATCHMAKING) SİSTEMİ ---
 
 @socketio.on('find_match')
 def handle_find_match(data):
-    username = data.get('username')
+    username = data.get('username', 'Oyuncu')
+    player_sid = request.sid
     
-    # Eğer kullanıcı havuzda zaten varsa işlem yapma
-    if request.sid in waiting_players:
+    # Oyuncu zaten havuzdaysa tekrar ekleme
+    if any(p['sid'] == player_sid for p in waiting_players):
         return
 
-    # Havuzda bekleyen başka biri var mı?
-    if waiting_players:
-        # Havuzdan ilk bekleyen oyuncuyu seç
-        opponent_sid, opponent_username = waiting_players.popitem()
+    waiting_players.append({'sid': player_sid, 'username': username})
+    
+    if len(waiting_players) >= 2:
+        p1 = waiting_players.pop(0)
+        p2 = waiting_players.pop(0)
         
-        # Benzersiz bir oda adı oluştur (örn: room_12345)
-        room_id = f"room_{random.randint(1000, 9999)}"
+        room_id = f"room_{p1['sid'][:5]}_{p2['sid'][:5]}"
         
-        # İki oyuncuyu da odaya dahil et
-        join_room(room_id, sid=request.sid)
-        join_room(room_id, sid=opponent_sid)
+        join_room(room_id, sid=p1['sid'])
+        join_room(room_id, sid=p2['sid'])
         
-        # Oyun durumunu başlat (Sayı bulmaca mantığı için)
         active_games[room_id] = {
-            'players': {
-                request.sid: {'username': username, 'number': None, 'guesses': []},
-                opponent_sid: {'username': opponent_username, 'number': None, 'guesses': []}
-            },
-            'turn': request.sid # İlk hamle hakkını rastgele veya bağlanan son kişiye verelim
+            'players': {p1['sid']: p1['username'], p2['sid']: p2['username']},
+            'player_list': [p1['sid'], p2['sid']],
+            'current_turn': p1['sid']
         }
         
-        # İki tarafa da eşleşmenin başarılı olduğunu ve rakip isimlerini bildir
-        emit('match_found', {'room_id': room_id, 'opponent': opponent_username}, room=request.sid)
-        emit('match_found', {'room_id': room_id, 'opponent': username}, room=opponent_sid)
-        
-        print(f"Eşleşme Sağlandı! Oda: {room_id} -> {username} VS {opponent_username}")
-    else:
-        # Havuz boşsa, bu oyuncuyu bekleyenler listesine ekle
-        waiting_players[request.sid] = username
-        emit('waiting_for_match', {'message': 'Rakip aranıyor...'})
-        print(f"Oyuncu havuzda bekliyor: {username} ({request.sid})")
+        emit('match_found', {'room_id': room_id, 'opponent': p2['username'], 'your_turn': True}, room=p1['sid'])
+        emit('match_found', {'room_id': room_id, 'opponent': p1['username'], 'your_turn': False}, room=p2['sid'])
 
-import os
-
-# ... (Kayıt, Giriş ve Matchmaking kodlarınız burada kalmaya devam ediyor) ...
+@socketio.on('disconnect')
+def handle_disconnect():
+    player_sid = request.sid
+    global waiting_players
+    waiting_players = [p for p in waiting_players if p['sid'] != player_sid]
 
 if __name__ == '__main__':
     # Render PORT ortam değişkenini otomatik atar, yerelde yoksa 5001 portunu kullanır.
