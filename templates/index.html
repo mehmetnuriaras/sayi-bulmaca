@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>4 Haneli Sayı Bulmaca Oyunu</title>
+    <title>4 Haneli Sayı Bulmaca - Multiplayer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
     <style>
       :root {
@@ -25,7 +25,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
       }
 
       .container {
@@ -33,16 +33,17 @@
         padding: 30px;
         border-radius: 15px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        width: 90%;
-        max-width: 400px;
+        width: 95%;
+        max-width: 450px;
         text-align: center;
         border: 2px solid var(--button-bg);
+        box-sizing: border-box;
       }
 
       h2,
       h3 {
         color: var(--accent-color);
-        margin-bottom: 20px;
+        margin-top: 0;
       }
 
       .form-group {
@@ -60,13 +61,14 @@
       input[type="text"],
       input[type="password"] {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border-radius: 8px;
         border: 1px solid var(--button-bg);
         background-color: var(--bg-color);
         color: var(--text-color);
         box-sizing: border-box;
         font-size: 16px;
+        text-align: center;
       }
 
       button {
@@ -122,7 +124,6 @@
         color: var(--bg-color);
       }
 
-      /* Ekran Gizleme Sınıfı */
       .screen {
         display: none;
       }
@@ -130,7 +131,6 @@
         display: block;
       }
 
-      /* Yükleniyor Ekranı Animasyonu */
       .spinner {
         border: 4px solid rgba(255, 255, 255, 0.1);
         width: 50px;
@@ -148,6 +148,48 @@
           transform: rotate(360deg);
         }
       }
+
+      /* Oyun Tahtası Alanı */
+      .game-logs {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        gap: 10px;
+      }
+
+      .log-box {
+        background: var(--bg-color);
+        width: 50%;
+        padding: 10px;
+        border-radius: 8px;
+        height: 200px;
+        overflow-y: auto;
+        font-size: 13px;
+        text-align: left;
+        border: 1px solid #44475a;
+      }
+
+      .log-box h4 {
+        margin: 0 0 8px 0;
+        color: var(--accent-color);
+        border-bottom: 1px solid #44475a;
+        padding-bottom: 3px;
+        text-align: center;
+      }
+
+      .log-item {
+        padding: 3px 0;
+        border-bottom: 1px dashed #282a36;
+      }
+
+      .badge-plus {
+        color: var(--success-color);
+        font-weight: bold;
+      }
+      .badge-minus {
+        color: var(--error-color);
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
@@ -157,15 +199,11 @@
 
       <div class="form-group">
         <label for="username">Kullanıcı Adı</label>
-        <input
-          type="text"
-          id="username"
-          placeholder="Kullanıcı adınızı girin"
-        />
+        <input type="text" id="username" placeholder="Kullanıcı adınız" />
       </div>
       <div class="form-group">
         <label for="password">Şifre</label>
-        <input type="password" id="password" placeholder="Şifrenizi girin" />
+        <input type="password" id="password" placeholder="Şifreniz" />
       </div>
 
       <button id="btn-primary" onclick="submitAuth()">Giriş Yap</button>
@@ -180,32 +218,92 @@
 
     <div id="menu-screen" class="container screen">
       <h2>Hoş Geldin!</h2>
-      <h3 id="display-username">...</h3>
-      <p>
-        Oyuncularla anlık eşleşmek ve sayı bulmaca savaşına başlamak için hazır
-        ol!
-      </p>
-      <button onclick="findMatch()">Oyun Bul</button>
+      <h3 id="display-username" style="color: var(--success-color)">...</h3>
+      <p>Çevrimiçi rakiplerle eşleşmek ve savaşa başlamak için hazır ol!</p>
+      <button onclick="findMatch()">Oyun Bul (Eşleş)</button>
     </div>
 
     <div id="loading-screen" class="container screen">
       <h2>Rakip Aranıyor...</h2>
       <div class="spinner"></div>
-      <p>Lütfen diğer bir oyuncunun bağlanmasını bekleyin.</p>
+      <p>Havuzdaki diğer bir oyuncunun bağlanması bekleniyor.</p>
+    </div>
+
+    <div id="setup-screen" class="container screen">
+      <h2>Rakip Bulundu!</h2>
+      <p>
+        Rakibin:
+        <strong id="setup-opponent" style="color: var(--accent-color)"></strong>
+      </p>
+      <hr style="border-color: #44475a" />
+      <p style="font-size: 14px; color: #aeaebe">
+        Rakibinizin tahmin etmesi için 4 haneli, rakamları farklı ve 0 ile
+        başlamayan gizli bir sayı belirleyin.
+      </p>
+
+      <div class="form-group">
+        <input
+          type="text"
+          id="secret-input"
+          maxlength="4"
+          placeholder="Örn: 5824"
+        />
+      </div>
+      <button id="btn-set-number" onclick="sendSecretNumber()">
+        Sayıyı Kilitle ve Onayla
+      </button>
+      <p
+        id="setup-waiting-text"
+        style="display: none; color: var(--button-hover); font-style: italic"
+      >
+        Sayı onaylandı. Rakibin sayısını seçmesi bekleniyor...
+      </p>
     </div>
 
     <div id="game-screen" class="container screen">
-      <h2>Oyun Başladı!</h2>
+      <h3>Oyun Alanı</h3>
       <p>
-        Rakibiniz:
-        <strong id="opponent-name" style="color: var(--accent-color)"></strong>
+        Rakip:
+        <strong id="game-opponent" style="color: var(--accent-color)"></strong>
       </p>
-      <div id="turn-info" style="font-weight: bold; margin-bottom: 15px"></div>
+
+      <div
+        id="turn-badge"
+        style="
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          font-weight: bold;
+        "
+      ></div>
+
+      <div id="guess-action-area">
+        <div class="form-group">
+          <input
+            type="text"
+            id="guess-input"
+            maxlength="4"
+            placeholder="4 Haneli Tahminin"
+          />
+        </div>
+        <button onclick="sendGuess()">Tahmini Gönder</button>
+      </div>
+
+      <div class="game-logs">
+        <div class="log-box">
+          <h4>Senin Hamlelerin</h4>
+          <div id="my-guesses"></div>
+        </div>
+        <div class="log-box">
+          <h4>Rakibin Hamleleri</h4>
+          <div id="opponent-guesses"></div>
+        </div>
+      </div>
     </div>
 
     <script>
       const socket = io();
-      let currentMode = "login"; // 'login' veya 'register'
+      let currentMode = "login";
       let myUsername = "";
       let currentRoom = "";
 
@@ -213,8 +311,7 @@
         const title = document.getElementById("auth-title");
         const btn = document.getElementById("btn-primary");
         const switchTxt = document.getElementById("switch-text");
-        const alertDiv = document.getElementById("auth-alert");
-        alertDiv.style.display = "none";
+        document.getElementById("auth-alert").style.display = "none";
 
         if (currentMode === "login") {
           currentMode = "register";
@@ -239,7 +336,6 @@
       function submitAuth() {
         const u = document.getElementById("username").value;
         const p = document.getElementById("password").value;
-
         if (currentMode === "register") {
           socket.emit("register", { username: u, password: p });
         } else {
@@ -250,7 +346,6 @@
       function guestLogin() {
         socket.emit("guest_login");
       }
-
       function findMatch() {
         showScreen("loading-screen");
         socket.emit("find_match", { username: myUsername });
@@ -263,13 +358,11 @@
         document.getElementById(screenId).classList.add("active");
       }
 
-      // --- SOKET GERİ BİLDİRİMLERİ ---
+      // --- SOKET DINLEYICILERI VE MEKANIKLER ---
 
       socket.on("auth_response", (data) => {
         showAlert(data.message, data.success);
-        if (data.success && currentMode === "register") {
-          toggleAuthMode(); // Kayıt başarılıysa giriş moduna otomatik at
-        }
+        if (data.success && currentMode === "register") toggleAuthMode();
       });
 
       socket.on("login_response", (data) => {
@@ -284,11 +377,97 @@
 
       socket.on("match_found", (data) => {
         currentRoom = data.room_id;
-        document.getElementById("opponent-name").innerText = data.opponent;
-        document.getElementById("turn-info").innerText = data.your_turn
-          ? "Senin Sıran! Bir tahmin yap."
-          : "Rakibin Sırası... Bekleniyor.";
+        document.getElementById("setup-opponent").innerText = data.opponent;
+        document.getElementById("game-opponent").innerText = data.opponent;
+
+        // Ekran durumlarını temizle ve kurulum ekranına geç
+        document.getElementById("secret-input").value = "";
+        document.getElementById("btn-set-number").style.display = "block";
+        document.getElementById("setup-waiting-text").style.display = "none";
+        showScreen("setup-screen");
+      });
+
+      function sendSecretNumber() {
+        const num = document.getElementById("secret-input").value;
+        if (num.length !== 4 || new Set(num).size !== 4 || num[0] === "0") {
+          alert(
+            "Hatalı Giriş! Sayı 4 haneli, rakamları farklı olmalı ve 0 ile başlamamalıdır.",
+          );
+          return;
+        }
+        socket.emit("set_number", { room_id: currentRoom, number: num });
+        document.getElementById("btn-set-number").style.display = "none";
+        document.getElementById("setup-waiting-text").style.display = "block";
+      }
+
+      socket.on("game_start_turns", (data) => {
+        document.getElementById("my-guesses").innerHTML = "";
+        document.getElementById("opponent-guesses").innerHTML = "";
+        document.getElementById("guess-input").value = "";
         showScreen("game-screen");
+        updateTurnUI(data.current_turn);
+      });
+
+      function updateTurnUI(currentTurnSid) {
+        const turnBadge = document.getElementById("turn-badge");
+        const actionArea = document.getElementById("guess-action-area");
+
+        if (currentTurnSid === socket.id) {
+          turnBadge.innerText = "SIRA SİZDE! Tahmin yapabilirsiniz.";
+          turnBadge.style.backgroundColor = "var(--success-color)";
+          turnBadge.style.color = "var(--bg-color)";
+          actionArea.style.opacity = "1";
+          actionArea.style.pointerEvents = "auto";
+        } else {
+          turnBadge.innerText = "RAKİBİN SIRASI... Bekleniyor.";
+          turnBadge.style.backgroundColor = "var(--button-bg)";
+          turnBadge.style.color = "white";
+          actionArea.style.opacity = "0.5";
+          actionArea.style.pointerEvents = "none";
+        }
+      }
+
+      function sendGuess() {
+        const g = document.getElementById("guess-input").value;
+        if (g.length !== 4 || new Set(g).size !== 4 || g[0] === "0") {
+          alert(
+            "Geçersiz Tahmin! 4 haneli, rakamları farklı ve 0 ile başlamayan bir sayı girin.",
+          );
+          return;
+        }
+        socket.emit("make_guess", { room_id: currentRoom, guess: g });
+        document.getElementById("guess-input").value = "";
+      }
+
+      socket.on("guess_result", (data) => {
+        const targetDivId =
+          data.player_sid === socket.id ? "my-guesses" : "opponent-guesses";
+        const logBox = document.getElementById(targetDivId);
+
+        // İpucu tasarımını renklendir (+ ve - durumları)
+        const plusBadge = `<span class="badge-plus">${data.plus}</span>`;
+        const minusBadge = `<span class="badge-minus">${data.minus}</span>`;
+
+        logBox.innerHTML += `<div class="log-item"><strong>${data.guess}</strong> -> ${plusBadge} ${minusBadge}</div>`;
+        logBox.scrollTop = logBox.scrollHeight;
+      });
+
+      socket.on("turn_update", (data) => {
+        updateTurnUI(data.current_turn);
+      });
+
+      socket.on("game_error", (data) => {
+        alert(data.message);
+      });
+
+      socket.on("game_over", (data) => {
+        alert("OYUN BİTTİ!\n\n" + data.message);
+        showScreen("menu-screen");
+      });
+
+      socket.on("opponent_left", (data) => {
+        alert(data.message);
+        showScreen("menu-screen");
       });
     </script>
   </body>
