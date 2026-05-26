@@ -9,6 +9,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'gizli-anahtar'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 # Veritabanı Altyapısı (Geleceğe Dönük) [2]
 def init_db():
     conn = sqlite3.connect('oyun.db')
