@@ -134,5 +134,14 @@ def handle_find_match(data):
         emit('waiting_for_match', {'message': 'Rakip aranıyor...'})
         print(f"Oyuncu havuzda bekliyor: {username} ({request.sid})")
 
+import os
+
+# ... (Kayıt, Giriş ve Matchmaking kodlarınız burada kalmaya devam ediyor) ...
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5001)
+    # Render PORT ortam değişkenini otomatik atar, yerelde yoksa 5001 portunu kullanır.
+    port = int(os.environ.get("PORT", 5001))
+    
+    # Render üzerinde production (canlı) ortamında debug=False olmalıdır.
+    # host="0.0.0.0" Render'ın dışarıdan gelen istekleri dinlemesi için ŞARTTIR.
+    socketio.run(app, host="0.0.0.0", port=port, debug=False)
