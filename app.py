@@ -133,6 +133,14 @@ def find_match(data):
         emit('match_found', {'room_id': room_id, 'opponent': p2['username']}, room=p1['id'])
         emit('match_found', {'room_id': room_id, 'opponent': p1['username']}, room=p2['id'])
 
+@socketio.on('cancel_search')
+def cancel_search():
+    """Oyuncuyu eşleşme sırasından çıkarır."""
+    global waiting_players
+    print(f"[ARAMA İPTALİ] {request.sid}")
+    waiting_players = [p for p in waiting_players if p['id'] != request.sid]
+
+
 @socketio.on('set_number')
 def set_number(data):
     """Oyuncunun kendi tahmin edilecek gizli sayısını kilitlemesini sağlar."""

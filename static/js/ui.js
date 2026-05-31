@@ -41,7 +41,6 @@ function selectMode(modeKey) {
 }
 
 function resetPreview() {
-    isLocked = false;
     previewMode(selectedMode, false);
 }
 

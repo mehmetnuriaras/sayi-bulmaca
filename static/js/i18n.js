@@ -34,6 +34,7 @@ const translations = {
                 "helper_cand_desc": "Double Click: Eliminate",
                 "helper_elim": "Eliminated Digits",
                 "helper_elim_desc": "Click: Restore",
+                "btn_cancel_search": "Cancel",
                 "redirecting": "Redirecting to lobby in 3 seconds...",
                 
                 "mode_ai_badge": "SINGLE PLAYER",
@@ -120,6 +121,7 @@ const translations = {
                 "helper_cand_desc": "Çift Tıkla: Ele",
                 "helper_elim": "Elenen Rakamlar",
                 "helper_elim_desc": "Tıkla: Geri Al",
+                "btn_cancel_search": "Vazgeç",
                 "redirecting": "3 saniye içinde lobiye yönlendiriliyorsunuz...",
                 
                 "mode_ai_badge": "TEK OYUNCULU",
@@ -206,6 +208,7 @@ const translations = {
                 "helper_cand_desc": "Doppelklick: Eliminieren",
                 "helper_elim": "Eliminierte Ziffern",
                 "helper_elim_desc": "Klick: Wiederherstellen",
+                "btn_cancel_search": "Abbrechen",
                 "redirecting": "Weiterleitung zur Lobby in 3 Sekunden...",
                 
                 "mode_ai_badge": "EINZELSPIELER",

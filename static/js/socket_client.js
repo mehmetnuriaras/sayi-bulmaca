@@ -1,5 +1,22 @@
+let matchTimeout = null;
 
-function findMatch() { showScreen('loading-screen'); socket.emit('find_match', {username: myUsername}); }
+function findMatch() { 
+    showScreen('loading-screen'); 
+    const cancelBtn = document.getElementById('btn-cancel-search');
+    if(cancelBtn) cancelBtn.style.display = 'none';
+    socket.emit('find_match', {username: myUsername}); 
+    
+    matchTimeout = setTimeout(() => {
+        if(cancelBtn) cancelBtn.style.display = 'inline-block';
+    }, 5000);
+}
+
+function cancelSearch() {
+    if(matchTimeout) clearTimeout(matchTimeout);
+    socket.emit('cancel_search');
+    showScreen('menu-screen');
+}
+
 
 socket.on('auth_response', (data) => {
     showAlert(data.message, data.success);
@@ -18,6 +35,7 @@ socket.on('login_response', (data) => {
 });
 
 socket.on('match_found', (data) => {
+    if(matchTimeout) clearTimeout(matchTimeout);
     currentRoom = data.room_id;
     document.getElementById('setup-opponent').innerText = data.opponent;
     document.getElementById('game-opponent').innerText = data.opponent;
