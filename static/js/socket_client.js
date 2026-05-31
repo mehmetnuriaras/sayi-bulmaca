@@ -43,6 +43,7 @@ socket.on('match_found', (data) => {
     document.getElementById('btn-set-number').style.display = 'block';
     document.getElementById('setup-waiting-text').style.display = 'none';
     showScreen('setup-screen');
+    startTurnTimer();
 });
 
 socket.on('game_start_turns', (data) => {
@@ -51,7 +52,9 @@ socket.on('game_start_turns', (data) => {
     document.getElementById('guess-input').value = '';
     showScreen('game-screen');
     updateTurnUI(data.current_turn);
+    startTurnTimer();
     initHelperPanel();
+    startTurnTimer();
 });
 
 socket.on('guess_result', (data) => {
@@ -67,6 +70,7 @@ socket.on('guess_result', (data) => {
 
 socket.on('turn_update', (data) => {
     updateTurnUI(data.current_turn);
+    startTurnTimer();
 });
 
 socket.on('game_error', (data) => {
@@ -78,6 +82,7 @@ socket.on('game_over', (data) => {
     const resultMsg = document.getElementById('result-message');
     const animDiv = document.getElementById('result-animation');
     
+    stopTurnTimer();
     const isWinner = (data.winner_sid === socket.id);
     const opponentName = document.getElementById('game-opponent').innerText || 'Rakip';
     const turns = document.getElementById('my-guesses').children.length;

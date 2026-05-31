@@ -148,13 +148,19 @@
         <div class="game-content-wrapper">
             <!-- Sol Taraf (Oynanış alanı ve Loglar) -->
             <div class="game-left-side">
-                <div id="turn-badge" style="padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold;"></div>
+                <div id="turn-badge" style="padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="turn-text"></span>
+                    <span id="timer-text" style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px;"></span>
+                </div>
 
                 <div id="guess-action-area">
                     <div class="form-group">
                         <input type="text" id="guess-input" maxlength="4" placeholder="4 Haneli Tahminin" data-i18n="guess_ph">
                     </div>
-                    <button onclick="sendGuess()" data-i18n="btn_guess">Tahmini Gönder</button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="sendGuess()" data-i18n="btn_guess" style="flex: 1;">Tahmini Gönder</button>
+                        <button onclick="surrenderGame()" data-i18n="btn_surrender" style="background-color: var(--error-color); flex: 1;">Pes Et 🏳️</button>
+                    </div>
                 </div>
 
                 <div class="game-logs">
@@ -166,6 +172,10 @@
                         <h4 data-i18n="opp_moves">Rakibin Hamleleri</h4>
                         <div id="opponent-guesses"></div>
                     </div>
+                </div>
+                <div class="legend-box" style="margin-top: 15px; padding: 10px; background: var(--bg-lighter); border-radius: 8px; font-size: 13px; text-align: center;">
+                    <span style="display: inline-block; margin-right: 15px;" data-i18n="legend_green">🟢 Doğru Rakam, Doğru Yer</span>
+                    <span style="display: inline-block;" data-i18n="legend_red">🔴 Doğru Rakam, Yanlış Yer</span>
                 </div>
             </div>
 

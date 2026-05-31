@@ -92,7 +92,8 @@ function startTimeAttackTimer() {
 
 function updateTimeAttackUI() {
     const turnBadge = document.getElementById('turn-badge');
-    turnBadge.innerText = t('time_status', {time: timeLeft, score: soloScore});
+    document.getElementById('turn-text').innerText = t('time_status', {time: timeLeft, score: soloScore});
+    document.getElementById('timer-text').innerText = '';
     if (timeLeft <= 15) {
         turnBadge.style.backgroundColor = "var(--error-color)";
         turnBadge.style.color = "#0a0b10";
@@ -194,14 +195,14 @@ function updateTurnUI_Local(isPlayerTurn) {
     const turnBadge = document.getElementById('turn-badge');
     const actionArea = document.getElementById('guess-action-area');
     if (isPlayerTurn) {
-        turnBadge.innerText = t('turn_you_ai');
+        document.getElementById('turn-text').innerText = t('turn_you_ai');
         turnBadge.style.backgroundColor = "var(--success-color)";
         turnBadge.style.color = "#0a0b10";
         turnBadge.classList.add('pulse-turn');
         actionArea.style.opacity = "1";
         actionArea.style.pointerEvents = "auto";
     } else {
-        turnBadge.innerText = t('turn_ai_think');
+        document.getElementById('turn-text').innerText = t('turn_ai_think');
         turnBadge.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
         turnBadge.style.color = "var(--text-dimmed)";
         turnBadge.classList.remove('pulse-turn');
@@ -262,4 +263,53 @@ function triggerLocalGameOver(isWinner, message) {
     }
     showScreen('game-over-screen');
     setTimeout(() => { showScreen('menu-screen'); }, 4000);
+}
+
+let turnTimerInterval = null;
+let currentTurnSeconds = 30;
+
+function startTurnTimer() {
+    if (turnTimerInterval) clearInterval(turnTimerInterval);
+    currentTurnSeconds = 30;
+    updateTimerText();
+    
+    turnTimerInterval = setInterval(() => {
+        currentTurnSeconds--;
+        if (currentTurnSeconds < 0) currentTurnSeconds = 0;
+        updateTimerText();
+        if (currentTurnSeconds === 0) {
+            clearInterval(turnTimerInterval);
+        }
+    }, 1000);
+}
+
+function updateTimerText() {
+    const el = document.getElementById('timer-text');
+    if (!el) return;
+    el.innerText = t('time_left', { time: currentTurnSeconds });
+    if (currentTurnSeconds <= 5) {
+        el.style.color = "var(--error-color)";
+    } else {
+        el.style.color = "white";
+    }
+}
+
+function stopTurnTimer() {
+    if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+    }
+    const el = document.getElementById('timer-text');
+    if (el) el.innerText = '';
+}
+
+function surrenderGame() {
+    if (!confirm(t('surrender_confirm'))) return;
+    
+    if (selectedMode === 'online-classic') {
+        socket.emit('surrender', { room_id: currentRoom });
+    } else {
+        // AI / Time Attack
+        triggerLocalGameOver(false, t('btn_surrender') + " :(");
+    }
 }

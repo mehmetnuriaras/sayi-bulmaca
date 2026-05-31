@@ -104,14 +104,14 @@ function updateTurnUI(currentTurnSid) {
     const turnBadge = document.getElementById('turn-badge');
     const actionArea = document.getElementById('guess-action-area');
     if(currentTurnSid === socket.id) {
-        turnBadge.innerText = t('turn_you');
+        document.getElementById('turn-text').innerText = t('turn_you');
         turnBadge.style.backgroundColor = "var(--success-color)";
         turnBadge.style.color = "#0a0b10";
         turnBadge.classList.add('pulse-turn');
         actionArea.style.opacity = "1";
         actionArea.style.pointerEvents = "auto";
     } else {
-        turnBadge.innerText = t('turn_opp');
+        document.getElementById('turn-text').innerText = t('turn_opp');
         turnBadge.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
         turnBadge.style.color = "var(--text-dimmed)";
         turnBadge.classList.remove('pulse-turn');
