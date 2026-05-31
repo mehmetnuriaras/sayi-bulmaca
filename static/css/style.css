@@ -1,0 +1,1064 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #07080c; /* Biraz daha derin antrasit, kontrast için */
+            --card-bg: rgba(22, 27, 49, 0.75); /* Daha belirgin ve opak kart katmanı */
+            --border-color: rgba(255, 255, 255, 0.08); /* Daha net sınır çizgisi */
+            --accent-color: #6366f1; /* Premium Indigo */
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --accent-light: #818cf8;
+            --text-color: #f8fafc; /* Slate 50 */
+            --text-dimmed: #94a3b8; /* Slate 400 */
+            --button-bg: linear-gradient(135deg in oklch, #4f46e5 0%, #6366f1 100%);
+            --button-hover: linear-gradient(135deg in oklch, #6366f1 0%, #818cf8 100%);
+            --success-color: #10b981; /* Soothing Emerald */
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --error-color: #f43f5e;   /* Soothing Rose/Crimson */
+            --error-glow: rgba(244, 63, 94, 0.15);
+            --panel-box-bg: rgba(7, 8, 14, 0.5); /* İç paneller için daha koyu, derinlik veren dolgu */
+            --panel-box-border: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Yaşayan Arka Plan */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            background: #07080c;
+        }
+
+        .aura {
+            position: absolute;
+            width: 60vmax;
+            height: 60vmax;
+            border-radius: 50%;
+            mix-blend-mode: plus-lighter;
+            filter: blur(140px);
+            opacity: 0.07;
+            pointer-events: none;
+        }
+
+        .aura-1 {
+            background: radial-gradient(circle, #6366f1 0%, transparent 80%);
+            top: -20%;
+            left: -20%;
+            animation: float-aura-1 45s infinite alternate ease-in-out;
+        }
+
+        .aura-2 {
+            background: radial-gradient(circle, #ec4899 0%, transparent 80%);
+            bottom: -20%;
+            right: -20%;
+            animation: float-aura-2 50s infinite alternate ease-in-out;
+        }
+
+        .aura-3 {
+            background: radial-gradient(circle, #3b82f6 0%, transparent 80%);
+            top: 40%;
+            left: 30%;
+            animation: float-aura-3 55s infinite alternate ease-in-out;
+        }
+
+        @keyframes float-aura-1 {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+            100% { transform: translate(15%, 10%) scale(1.15) rotate(180deg); }
+        }
+
+        @keyframes float-aura-2 {
+            0% { transform: translate(0, 0) scale(1.1) rotate(0deg); }
+            100% { transform: translate(-10%, -15%) scale(0.9) rotate(-180deg); }
+        }
+
+        @keyframes float-aura-3 {
+            0% { transform: translate(0, 0) scale(0.95); }
+            100% { transform: translate(-5%, 15%) scale(1.2); }
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            padding: 35px 30px;
+            border-radius: 24px;
+            box-shadow: 
+                0 4px 20px -2px rgba(0, 0, 0, 0.3),
+                0 12px 30px -4px rgba(0, 0, 0, 0.5),
+                0 30px 60px -15px rgba(0, 0, 0, 0.7),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            width: 95%;
+            max-width: 460px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .container:hover {
+            box-shadow: 
+                0 4px 25px -2px rgba(0, 0, 0, 0.4),
+                0 15px 40px -4px rgba(0, 0, 0, 0.6),
+                0 35px 70px -12px rgba(0, 0, 0, 0.8),
+                0 0 40px var(--accent-glow),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        h2, h3, h4 {
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        h2 {
+            font-size: 26px;
+            background: linear-gradient(135deg in oklch, #ffffff 0%, var(--accent-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dimmed);
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15); /* Daha belirgin kenarlık */
+            background-color: rgba(7, 8, 14, 0.5); /* İç dolgusu daha koyu ve derin */
+            color: var(--text-color);
+            box-sizing: border-box;
+            font-size: 16px;
+            font-family: inherit;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        input[type="text"]:hover, input[type="password"]:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            background-color: rgba(7, 8, 14, 0.7);
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--accent-light);
+            background-color: rgba(7, 8, 14, 0.85);
+            box-shadow: 
+                0 0 0 3px var(--accent-glow),
+                inset 0 2px 5px rgba(0, 0, 0, 0.4),
+                0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* 4 Haneli Sayı Girişleri İçin Özel Çok Daha Belirgin Tasarım */
+        #secret-input, #guess-input {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            text-indent: 8px; /* Karakterlerin tam ortalanması için */
+            border-color: rgba(99, 102, 241, 0.4);
+            background-color: rgba(7, 8, 14, 0.6);
+            box-shadow: 
+                inset 0 2px 6px rgba(0, 0, 0, 0.5),
+                0 0 12px rgba(99, 102, 241, 0.1);
+        }
+
+        #secret-input:focus, #guess-input:focus {
+            border-color: var(--accent-light);
+            background-color: rgba(7, 8, 14, 0.85);
+            box-shadow: 
+                0 0 0 4px var(--accent-glow),
+                0 0 20px rgba(99, 102, 241, 0.25),
+                inset 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: var(--button-bg);
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+        }
+
+        button:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-guest {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-color);
+            box-shadow: none;
+        }
+
+        .btn-guest:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-dimmed);
+            box-shadow: none;
+            color: var(--text-color);
+        }
+
+        .switch-mode {
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-dimmed);
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            display: inline-block;
+        }
+
+        .switch-mode:hover {
+            color: var(--accent-light);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+            border: 1px solid transparent;
+        }
+        .alert-error { 
+            background-color: rgba(244, 63, 94, 0.1); 
+            color: #fca5a5;
+            border-color: rgba(244, 63, 94, 0.2);
+        }
+        .alert-success { 
+            background-color: rgba(16, 185, 129, 0.1); 
+            color: #a7f3d0;
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .screen { 
+            display: none; 
+        }
+        
+        .active { 
+            display: block; 
+            animation: screenFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes screenFadeIn {
+            from { opacity: 0; transform: scale(0.97) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.03);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border-left-color: var(--accent-light);
+            box-shadow: 0 0 15px var(--accent-glow);
+            animation: spin 1s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+            margin: 24px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Savaş Günlüğü (Battle Log) Düzeni */
+        .game-logs {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            gap: 15px;
+        }
+
+        .log-box {
+            background: rgba(7, 8, 14, 0.45);
+            width: 50%;
+            padding: 14px;
+            border-radius: 14px;
+            height: 250px;
+            overflow-y: auto;
+            font-size: 13px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.05) transparent;
+            box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .log-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .log-box h4 {
+            margin: 0 0 12px 0;
+            color: var(--accent-light);
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            text-align: center;
+        }
+
+        .log-item {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            will-change: transform, opacity;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* İpucu Rozetleri (Badges) */
+        .badge-plus { 
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success-color); 
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        .badge-minus { 
+            background: rgba(244, 63, 94, 0.12);
+            color: var(--error-color); 
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        /* Geçmiş Paneli Stilleri */
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(2px);
+        }
+        .history-badge {
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-win {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        .badge-lose {
+            background: rgba(244, 63, 94, 0.12);
+            color: var(--error-color);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        /* Çıkış Yap Butonu Stilleri */
+        .btn-logout {
+            background: rgba(244, 63, 94, 0.08);
+            color: var(--error-color);
+            border: 1px solid rgba(244, 63, 94, 0.15);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .btn-logout:hover {
+            background: rgba(244, 63, 94, 0.16);
+            border-color: rgba(244, 63, 94, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(244, 63, 94, 0.15);
+        }
+
+        /* Yardımcı Karalama Defteri Arayüzü */
+        #game-screen {
+            max-width: 850px;
+        }
+
+        .game-content-wrapper {
+            display: flex;
+            flex-direction: column-reverse; /* Mobilde karalama defteri alta kayar */
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .game-content-wrapper {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .game-left-side {
+                flex: 1.3;
+            }
+            .game-right-side {
+                flex: 0.7;
+                max-width: 320px;
+                min-width: 270px;
+            }
+        }
+
+        .helper-panel {
+            background: rgba(7, 8, 14, 0.35);
+            padding: 18px;
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2), 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .helper-header {
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+
+        .helper-header:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .panel-box {
+            background: var(--panel-box-bg);
+            border: 1px solid var(--panel-box-border);
+            border-radius: 14px;
+            padding: 14px;
+            min-height: 80px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-box.dragover {
+            border-color: var(--accent-light);
+            background: rgba(99, 102, 241, 0.05);
+            box-shadow: 0 0 15px var(--accent-glow), inset 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--success-color);
+            margin-bottom: 2px;
+            text-align: left;
+        }
+
+        .panel-desc {
+            font-size: 10px;
+            color: var(--text-dimmed);
+            margin: 0 0 8px 0;
+            text-align: left;
+        }
+
+        .number-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .number-box {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: grab;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-color);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .number-box:hover {
+            transform: translateY(-3px) scale(1.05);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+        }
+
+        .number-box:active {
+            cursor: grabbing;
+        }
+
+        /* Rakam Kutucuklarının Durumları (States) */
+        .state-neutral {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .state-include {
+            background: rgba(16, 185, 129, 0.15) !important;
+            color: var(--success-color) !important;
+            border-color: rgba(16, 185, 129, 0.4) !important;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        .state-exclude {
+            background: rgba(244, 63, 94, 0.08) !important;
+            color: var(--text-dimmed) !important;
+            border-color: rgba(244, 63, 94, 0.15) !important;
+            text-decoration: line-through;
+            opacity: 0.4;
+            box-shadow: none;
+        }
+        
+        /* Sürükleme efekti */
+        .number-box.dragging {
+            opacity: 0.3;
+            border: 2px dashed var(--accent-light);
+            transform: scale(0.9);
+        }
+
+        /* Oyun Sonu Ekranı & Animasyonlar */
+        #game-over-screen {
+            max-width: 450px;
+        }
+
+        .result-card {
+            padding: 20px;
+        }
+
+        .result-animation {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 64px;
+        }
+
+        /* Kazanan Animasyonu (Trophy Bouncing) */
+        .winner-glow {
+            animation: winner-bounce 1s ease infinite alternate;
+            filter: drop-shadow(0 0 15px #f1fa8c);
+        }
+
+        @keyframes winner-bounce {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-15px) scale(1.15); }
+        }
+
+        /* Kaybeden Animasyonu (Broken Heart Shaking) */
+        .loser-shake {
+            animation: loser-shake 0.4s ease infinite alternate;
+            filter: drop-shadow(0 0 10px #ff5555);
+        }
+
+        /* Açılır-Kapanır Karalama Defteri Sınıfları */
+        .helper-content {
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 500px;
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        .helper-content.collapsed {
+            max-height: 0px !important;
+            opacity: 0 !important;
+        }
+
+        #turn-badge {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .pulse-turn {
+            animation: turnPulse 2s infinite ease-in-out;
+        }
+        
+        @keyframes turnPulse {
+            0% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+            50% { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.5); }
+            100% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+        }
+
+        /* Lobi Menü Dashboard Düzeni */
+        .menu-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .menu-dashboard {
+                flex-direction: row;
+                justify-content: space-around;
+                align-items: center;
+                text-align: left;
+            }
+            .menu-left {
+                flex: 1;
+                display: flex;
+                justify-content: center;
+            }
+            .menu-right {
+                flex: 1;
+                max-width: 380px;
+            }
+        }
+
+        /* 3D D-pad Konsol Stilleri (GreyD097 Uiverse adaptasyonu) */
+        .console-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 250px;
+            height: 250px;
+        }
+
+        .console-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        .console-around {
+            width: 200px;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .console-handle {
+            width: 154px;
+            height: 154px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background: rgba(7, 8, 14, 0.7);
+            box-shadow:
+                0 0 10px rgba(0, 0, 0, 0.6),
+                inset 0 0 16px rgba(99, 102, 241, 0.25),
+                inset 0 0 30px rgba(0, 0, 0, 0.9);
+            perspective: 300px;
+        }
+
+        .console-button-wrapper {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background-image: linear-gradient(135deg in oklch, #4f46e5 0%, #ec4899 100%);
+            box-shadow:
+                0 8px 16px rgba(0, 0, 0, 0.6),
+                0 -4px 10px rgba(255, 255, 255, 0.1),
+                inset 0 2px 2px rgba(255, 255, 255, 0.4),
+                inset 0 -2px 2px rgba(0, 0, 0, 0.4);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, box-shadow;
+        }
+
+        .console-inside {
+            position: relative;
+            width: 82px;
+            height: 82px;
+            border-radius: 50%;
+            background-image: linear-gradient(180deg, #161a2e, #0c0e1a);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.05),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .console-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: inset 0 -1px 2px rgba(0,0,0,0.5);
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .console-dot:nth-child(1) { left: 50%; top: 12%; transform: translateX(-50%); }
+        .console-dot:nth-child(2) { left: 88%; top: 50%; transform: translateY(-50%); }
+        .console-dot:nth-child(3) { left: 50%; top: 88%; transform: translateX(-50%); }
+        .console-dot:nth-child(4) { left: 12%; top: 50%; transform: translateY(-50%); }
+
+        .console-icon {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            opacity: 0.35;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            filter: grayscale(100%);
+            z-index: 105;
+            cursor: pointer;
+        }
+
+        /* Tooltip Metin Baloncuğu Stilleri */
+        .console-icon::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%) scale(0.85);
+            background: rgba(15, 23, 42, 0.95);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .console-icon::before {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%) scale(0.85);
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Hover ve D-pad üzerinden Hover Durumlarında Tooltip Gösterimi */
+        .console-icon:hover::after,
+        .console-row:has(.t1:hover) #icon-ai::after,
+        .console-row:has(.t2:hover) #icon-online-time::after,
+        .console-row:has(.t3:hover) #icon-time-attack::after,
+        .console-row:has(.t4:hover) #icon-online-classic::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        .console-icon:hover::before,
+        .console-row:has(.t1:hover) #icon-ai::before,
+        .console-row:has(.t2:hover) #icon-online-time::before,
+        .console-row:has(.t3:hover) #icon-time-attack::before,
+        .console-row:has(.t4:hover) #icon-online-classic::before {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* İkonların Kesin Konumları (ID bazlı) */
+        #icon-ai { top: -15%; left: 50%; }
+        #icon-online-time { top: 50%; left: 115%; }
+        #icon-online-classic { top: 115%; left: 50%; }
+        #icon-time-attack { top: 50%; left: -15%; }
+
+        /* Farklı Yönlerdeki Aktif Durum Parlamaları ve Hover Glow */
+        .console-icon.active, .console-icon:hover {
+            opacity: 1;
+            filter: grayscale(0%);
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        #icon-ai.active, #icon-ai:hover { filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6)); }
+        #icon-online-time.active, #icon-online-time:hover { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.6)); }
+        #icon-online-classic.active, #icon-online-classic:hover { filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.6)); }
+        #icon-time-attack.active, #icon-time-attack:hover { filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.6)); }
+
+        /* Görünmez Dokunmatik Dilimler */
+        .console-touch {
+            position: absolute;
+            display: flex;
+            flex-wrap: wrap;
+            z-index: 99;
+            width: 200px;
+            height: 200px;
+            transform: rotate(45deg);
+        }
+
+        .console-touch .t {
+            width: 100px;
+            height: 100px;
+            cursor: pointer;
+        }
+
+        /* Hover Durumlarında Joystick'in 3D Eğilmesi */
+        .console-row:has(.t1:hover) .console-button-wrapper,
+        .console-row:has(#icon-ai:hover) .console-button-wrapper {
+            transform: translate(0, -6px) rotateX(10deg);
+            box-shadow:
+                0 14px 25px rgba(0, 0, 0, 0.6),
+                0 -4px 10px rgba(255, 255, 255, 0.1),
+                inset 0 2px 2px rgba(255, 255, 255, 0.4);
+        }
+        .console-row:has(.t1:hover) .console-dot:nth-child(1),
+        .console-row:has(#icon-ai:hover) .console-dot:nth-child(1) { background: var(--success-color); box-shadow: 0 0 6px var(--success-color); }
+
+        .console-row:has(.t2:hover) .console-button-wrapper,
+        .console-row:has(#icon-online-time:hover) .console-button-wrapper {
+            transform: translate(6px, 0) rotateY(10deg);
+            box-shadow:
+                -6px 10px 25px rgba(0, 0, 0, 0.6),
+                0 -4px 10px rgba(255, 255, 255, 0.1),
+                inset 0 2px 2px rgba(255, 255, 255, 0.4);
+        }
+        .console-row:has(.t2:hover) .console-dot:nth-child(2),
+        .console-row:has(#icon-online-time:hover) .console-dot:nth-child(2) { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+
+        .console-row:has(.t3:hover) .console-button-wrapper,
+        .console-row:has(#icon-time-attack:hover) .console-button-wrapper {
+            transform: translate(-6px, 0) rotateY(-10deg);
+            box-shadow:
+                6px 10px 25px rgba(0, 0, 0, 0.6),
+                0 -4px 10px rgba(255, 255, 255, 0.1),
+                inset 0 2px 2px rgba(255, 255, 255, 0.4);
+        }
+        .console-row:has(.t3:hover) .console-dot:nth-child(4),
+        .console-row:has(#icon-time-attack:hover) .console-dot:nth-child(4) { background: var(--error-color); box-shadow: 0 0 6px var(--error-color); }
+
+        .console-row:has(.t4:hover) .console-button-wrapper,
+        .console-row:has(#icon-online-classic:hover) .console-button-wrapper {
+            transform: translate(0, 6px) rotateX(-10deg);
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, 0.6),
+                0 -4px 10px rgba(255, 255, 255, 0.1),
+                inset 0 2px 2px rgba(255, 255, 255, 0.4);
+        }
+        .console-row:has(.t4:hover) .console-dot:nth-child(3),
+        .console-row:has(#icon-online-classic:hover) .console-dot:nth-child(3) { background: var(--accent-light); box-shadow: 0 0 6px var(--accent-light); }
+
+        /* Sağ Taraf: Mod Açıklama Kartı Stilleri */
+        .mode-details-card {
+            background: rgba(7, 8, 14, 0.45);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 24px;
+            min-height: 230px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+            animation: cardFadeIn 0.3s ease;
+        }
+
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .mode-badge {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--accent-light);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .mode-details-card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .mode-details-card p {
+            font-size: 13px;
+            color: var(--text-dimmed);
+            line-height: 1.5;
+            margin-bottom: 12px;
+            min-height: 58px; /* Metin değişimlerinde zıplamayı önler */
+        }
+
+        .mode-meta-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: var(--text-dimmed);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        .btn-play-mode {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: var(--button-bg);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-play-mode:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+        }
+
+        /* Giriş Ekranı Küçültme ve Düzenleme */
+        #auth-screen {
+            max-width: 380px !important; /* Lobi giriş kartını daraltıyoruz */
+            padding: 30px 24px !important;
+        }
+
+        .auth-form-container {
+            margin-top: 15px;
+        }
+
+        .auth-form-container .form-group {
+            margin-bottom: 12px;
+        }
+
+        .auth-form-container label {
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .auth-form-container input[type="text"], 
+        .auth-form-container input[type="password"] {
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 10px;
+        }
+
+        .auth-form-container button {
+            padding: 11px;
+            font-size: 14px;
+            border-radius: 10px;
+            margin-top: 8px;
+        }
+
+        .auth-form-container .switch-mode {
+            margin-top: 14px;
+            font-size: 12px;
+        }
+
+        /* Logo Stilleri */
+        .logo-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            min-height: 50px;
+        }
+
+        #logo-img {
+            max-width: 160px;
+            max-height: 50px;
+            object-fit: contain;
+        }
+
+        .logo-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            animation: logo-bounce 2s infinite ease-in-out;
+            display: inline-block;
+        }
+
+        .logo-text {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--accent-light);
+            background: linear-gradient(135deg in oklch, #ffffff 0%, var(--accent-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        @keyframes logo-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
