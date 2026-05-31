@@ -8,8 +8,9 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div style="position: absolute; top: 15px; right: 20px; z-index: 1000;">
-        <select id="lang-select" onchange="setLanguage(this.value)" style="background: rgba(7, 8, 14, 0.7); color: var(--text-color); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 6px 12px; font-size: 14px; cursor: pointer; outline: none; font-family: inherit;">
+    <div style="position: absolute; top: 15px; right: 20px; z-index: 1000; display: flex; gap: 8px;">
+        <button id="btn-mute" style="background: rgba(7, 8, 14, 0.7); color: var(--text-color); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 6px 12px; font-size: 14px; cursor: pointer; outline: none; font-family: inherit;">🔊</button>
+        <select id="lang-select" style="background: rgba(7, 8, 14, 0.7); color: var(--text-color); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 6px 12px; font-size: 14px; cursor: pointer; outline: none; font-family: inherit;">
             <option value="en">🇬🇧 EN</option>
             <option value="tr">🇹🇷 TR</option>
             <option value="de">🇩🇪 DE</option>
@@ -106,7 +107,37 @@
                         <span id="meta-time">⏱️ Süre: Limitsiz</span>
                     </div>
 
-                    <button class="btn-play-mode" id="btn-start-game" onclick="startGameMode()">Oyunu Başlat</button>
+                    <div class="form-group" id="ai-difficulty-wrapper" style="margin-top: 15px; display: none;">
+                        <label for="ai-difficulty" data-i18n="ai_difficulty_label">Yapay Zeka Zorluğu</label>
+                        <select id="ai-difficulty" style="background: rgba(7, 8, 14, 0.7); color: var(--text-color); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; width: 100%; cursor: pointer; outline: none; font-family: inherit; font-size: 14px;">
+                            <option value="kolay" data-i18n="diff_easy">Kolay</option>
+                            <option value="normal" data-i18n="diff_normal" selected>Normal</option>
+                            <option value="zor" data-i18n="diff_hard">Zor</option>
+                            <option value="uzman" data-i18n="diff_expert">Uzman</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="lobby-size-wrapper" style="margin-top: 15px; display: none;">
+                        <label for="ta-lobby-size" data-i18n="ta_lobby_size_label">Lobi Oyuncu Sayısı</label>
+                        <select id="ta-lobby-size" style="background: rgba(7, 8, 14, 0.7); color: var(--text-color); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; width: 100%; cursor: pointer; outline: none; font-family: inherit; font-size: 14px;">
+                            <option value="2">2 Oyuncu</option>
+                            <option value="3">3 Oyuncu</option>
+                            <option value="4">4 Oyuncu</option>
+                            <option value="5" selected>5 Oyuncu</option>
+                            <option value="6">6 Oyuncu</option>
+                            <option value="7">7 Oyuncu</option>
+                            <option value="8">8 Oyuncu</option>
+                        </select>
+                    </div>
+
+                    <div id="active-lobbies-wrapper" style="margin-top: 15px; display: none; text-align: left;">
+                        <label data-i18n="ta_active_lobbies_label" style="font-size:12px; color:var(--text-dimmed);">Aktif Bekleyen Odalar</label>
+                        <div id="active-lobbies-list" style="background: rgba(7, 8, 14, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 5px; scrollbar-width: thin;">
+                            <!-- Waiting rooms listed here dynamically -->
+                        </div>
+                    </div>
+
+                    <button class="btn-play-mode" id="btn-start-game">Oyunu Başlat</button>
                 </div>
             </div>
         </div>
@@ -219,12 +250,8 @@
     </div>
 
     
-    <script src="/static/js/main.js"></script>
-    <script src="/static/js/i18n.js"></script>
-    <script src="/static/js/auth.js"></script>
-    <script src="/static/js/ui.js"></script>
-    <script src="/static/js/game_core.js"></script>
-    <script src="/static/js/socket_client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script type="module" src="/static/js/main.js"></script>
     
 </body>
 </html>

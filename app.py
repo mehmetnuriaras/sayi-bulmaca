@@ -34,6 +34,10 @@ init_db()
 waiting_players = []  # Eşleşme bekleyen oyuncular
 active_games = {}     # Oda ID'sine göre oyun verileri
 
+# Çok Oyunculu Zamana Karşı (Multiplayer Time Attack) Değişkenleri
+active_ta_lobbies = {}        # room_id -> { host, size, players, countdown_started }
+active_ta_games = {}          # room_id -> { size, players, targets, current_target_index, scores, time_left }
+
 def sayi_gecerli_mi(sayi):
     """Sayı 4 haneli, benzersiz rakamlı ve 0 ile başlamamalı [3, 6]."""
     if len(sayi) != 4 or not sayi.isdigit(): return False
@@ -294,16 +298,287 @@ def make_guess(data):
         
     process_guess(room_id, request.sid, guess)
 
+def generate_random_target():
+    digits = list('0123456789')
+    number = ''
+    first = random.choice(digits[1:])
+    number += first
+    digits.remove(first)
+    for _ in range(3):
+        d = random.choice(digits)
+        number += d
+        digits.remove(d)
+    return number
+
+def broadcast_ta_lobbies():
+    global active_ta_lobbies
+    lobbies_list = []
+    for room_id, lobby in active_ta_lobbies.items():
+        lobbies_list.append({
+            'room_id': room_id,
+            'host': lobby['host'],
+            'current': len(lobby['players']),
+            'size': lobby['size']
+        })
+    socketio.emit('ta_lobbies_list', lobbies_list)
+
+def start_ta_game_from_lobby(room_id):
+    global active_ta_lobbies, active_ta_games
+    lobby = active_ta_lobbies.pop(room_id, None)
+    if not lobby or len(lobby['players']) < 2:
+        broadcast_ta_lobbies()
+        return
+        
+    players = lobby['players']
+    targets = []
+    while len(targets) < 30:
+        num = generate_random_target()
+        if num not in targets:
+            targets.append(num)
+            
+    game_state = {
+        'size': len(players),
+        'players': players,
+        'targets': targets,
+        'current_target_index': 0,
+        'scores': {p['username']: 0 for p in players},
+        'time_left': 90
+    }
+    active_ta_games[room_id] = game_state
+    
+    print(f"[TA MAÇ BAŞLADI] {room_id} -> Oyuncular: {[p['username'] for p in players]}")
+    
+    socketio.emit('ta_game_start', {
+        'room_id': room_id,
+        'players': [p['username'] for p in players]
+    }, room=room_id)
+    
+    socketio.start_background_task(ta_timer_task, room_id)
+    broadcast_ta_lobbies()
+
+def ta_timer_task(room_id):
+    for i in range(90, -1, -1):
+        socketio.sleep(1)
+        if room_id not in active_ta_games:
+            return
+        active_ta_games[room_id]['time_left'] = i
+        socketio.emit('ta_time_update', { 'time_left': i }, room=room_id)
+        
+    game = active_ta_games.get(room_id)
+    if game:
+        scores = game['scores']
+        max_score = max(scores.values()) if scores else 0
+        winners = [u for u, s in scores.items() if s == max_score]
+        socketio.emit('ta_game_over', { 'scores': scores, 'winners': winners }, room=room_id)
+        active_ta_games.pop(room_id, None)
+
+def ta_lobby_countdown_task_new(room_id):
+    for i in range(15, -1, -1):
+        socketio.sleep(1)
+        if room_id not in active_ta_lobbies:
+            return
+            
+        lobby = active_ta_lobbies[room_id]
+        if len(lobby['players']) < 2:
+            lobby['countdown_started'] = False
+            socketio.emit('ta_lobby_countdown_stopped', room=room_id)
+            return
+            
+        if len(lobby['players']) >= lobby['size']:
+            start_ta_game_from_lobby(room_id)
+            return
+            
+        socketio.emit('ta_lobby_countdown', { 'seconds': i }, room=room_id)
+        
+    start_ta_game_from_lobby(room_id)
+
+@socketio.on('get_active_ta_lobbies')
+def get_active_ta_lobbies():
+    broadcast_ta_lobbies()
+
+@socketio.on('find_time_attack_match')
+def find_time_attack_match(data):
+    global active_ta_lobbies
+    lobby_size = int(data.get('lobby_size', 5))
+    username = data.get('username')
+    player = {'id': request.sid, 'username': username}
+    
+    clean_player_from_lobbies(request.sid)
+    
+    matched_room_id = None
+    for room_id, lobby in active_ta_lobbies.items():
+        if lobby['size'] == lobby_size and len(lobby['players']) < lobby['size']:
+            matched_room_id = room_id
+            break
+            
+    if matched_room_id:
+        room_id = matched_room_id
+        join_room(room_id, sid=request.sid)
+        active_ta_lobbies[room_id]['players'].append(player)
+        print(f"[TA LOBİ] {username} lobiye katıldı: {room_id} ({len(active_ta_lobbies[room_id]['players'])}/{lobby_size})")
+    else:
+        room_id = f"ta_lobby_{uuid.uuid4().hex[:12]}"
+        join_room(room_id, sid=request.sid)
+        active_ta_lobbies[room_id] = {
+            'host': username,
+            'size': lobby_size,
+            'players': [player],
+            'countdown_started': False
+        }
+        print(f"[TA LOBİ] {username} lobi oluşturdu: {room_id}")
+        
+    lobby = active_ta_lobbies[room_id]
+    
+    socketio.emit('ta_lobby_update', {
+        'room_id': room_id,
+        'players': [x['username'] for x in lobby['players']],
+        'size': lobby_size
+    }, room=room_id)
+    
+    if len(lobby['players']) >= 2 and not lobby['countdown_started']:
+        lobby['countdown_started'] = True
+        socketio.start_background_task(ta_lobby_countdown_task_new, room_id)
+    elif len(lobby['players']) >= lobby_size:
+        start_ta_game_from_lobby(room_id)
+        
+    broadcast_ta_lobbies()
+
+@socketio.on('join_ta_lobby')
+def join_ta_lobby(data):
+    global active_ta_lobbies
+    room_id = data.get('room_id')
+    username = data.get('username')
+    player = {'id': request.sid, 'username': username}
+    
+    if not room_id or room_id not in active_ta_lobbies:
+        emit('game_error', {'message': 'Lobi bulunamadı!'})
+        return
+        
+    lobby = active_ta_lobbies[room_id]
+    if len(lobby['players']) >= lobby['size']:
+        emit('game_error', {'message': 'Lobi dolu!'})
+        return
+        
+    clean_player_from_lobbies(request.sid)
+    
+    join_room(room_id, sid=request.sid)
+    lobby['players'].append(player)
+    
+    print(f"[TA LOBİ] {username} doğrudan lobiye katıldı: {room_id} ({len(lobby['players'])}/{lobby['size']})")
+    
+    socketio.emit('ta_lobby_update', {
+        'room_id': room_id,
+        'players': [x['username'] for x in lobby['players']],
+        'size': lobby['size']
+    }, room=room_id)
+    
+    if len(lobby['players']) >= 2 and not lobby['countdown_started']:
+        lobby['countdown_started'] = True
+        socketio.start_background_task(ta_lobby_countdown_task_new, room_id)
+    elif len(lobby['players']) >= lobby['size']:
+        start_ta_game_from_lobby(room_id)
+        
+    broadcast_ta_lobbies()
+
+@socketio.on('cancel_time_attack_search')
+def cancel_time_attack_search():
+    print(f"[TA ARAMA İPTALİ] {request.sid}")
+    clean_player_from_lobbies(request.sid)
+
+def clean_player_from_lobbies(sid):
+    global active_ta_lobbies
+    rooms_to_remove = []
+    for room_id, lobby in active_ta_lobbies.items():
+        if any(p['id'] == sid for p in lobby['players']):
+            lobby['players'] = [p for p in lobby['players'] if p['id'] != sid]
+            
+            if not lobby['players']:
+                rooms_to_remove.append(room_id)
+            else:
+                host_still_present = any(p['username'] == lobby['host'] for p in lobby['players'])
+                if not host_still_present:
+                    lobby['host'] = lobby['players'][0]['username']
+                    
+                socketio.emit('ta_lobby_update', {
+                    'room_id': room_id,
+                    'players': [x['username'] for x in lobby['players']],
+                    'size': lobby['size']
+                }, room=room_id)
+                
+    for r in rooms_to_remove:
+        active_ta_lobbies.pop(r, None)
+        
+    if rooms_to_remove or any(any(p['id'] == sid for p in l['players']) for l in active_ta_lobbies.values()):
+        broadcast_ta_lobbies()
+
+@socketio.on('ta_make_guess')
+def ta_make_guess(data):
+    room_id = data.get('room_id')
+    guess = data.get('guess')
+    if not room_id or room_id not in active_ta_games:
+        return
+        
+    game = active_ta_games[room_id]
+    username = next((p['username'] for p in game['players'] if p['id'] == request.sid), None)
+    if not username:
+        return
+        
+    if not sayi_gecerli_mi(guess):
+        emit('game_error', {'message': 'Geçersiz tahmin!'})
+        return
+        
+    target = game['targets'][game['current_target_index']]
+    
+    plus, minus = 0, 0
+    for i in range(4):
+        if guess[i] == target[i]:
+            plus += 1
+        elif guess[i] in target:
+            minus += 1
+            
+    socketio.emit('ta_guess_result', {
+        'username': username,
+        'guess': guess,
+        'plus': plus,
+        'minus': minus
+    }, room=room_id)
+    
+    if plus == 4:
+        game['scores'][username] = game['scores'].get(username, 0) + 1
+        game['current_target_index'] += 1
+        socketio.emit('ta_score_update', {
+            'scores': game['scores'],
+            'solved_by': username,
+            'solved_number': target
+        }, room=room_id)
+
+@socketio.on('ta_surrender')
+def ta_surrender(data):
+    room_id = data.get('room_id')
+    if not room_id or room_id not in active_ta_games:
+        return
+    game = active_ta_games[room_id]
+    username = next((p['username'] for p in game['players'] if p['id'] == request.sid), None)
+    if not username:
+        return
+        
+    print(f"[TA PES ETTİ] {username} in {room_id}")
+    game['players'] = [p for p in game['players'] if p['id'] != request.sid]
+    game['scores'].pop(username, None)
+    socketio.emit('ta_player_left', { 'username': username }, room=room_id)
+    if not game['players']:
+        active_ta_games.pop(room_id, None)
+
 @socketio.on('disconnect')
 def disconnect():
-    """Bağlantısı kopan oyuncunun odasını kapatır ve sıradan çıkarır."""
-    global waiting_players
+    """Bağlantısı kopan oyuncunun odasını kapatır, lobilerden ve aktif TA oyunlarından temizler."""
+    global waiting_players, active_ta_lobbies, active_ta_games
     print(f"[BAĞLANTI KOPMASI] {request.sid}")
     
-    # Bekleyen oyuncular arasındaysa temizle
     waiting_players = [p for p in waiting_players if p['id'] != request.sid]
     
-    # Aktif bir oyundaysa oyunu bitir ve rakibe haber ver
+    clean_player_from_lobbies(request.sid)
+            
     rooms_to_remove = []
     for room_id, game in active_games.items():
         if game['p1']['id'] == request.sid or game['p2']['id'] == request.sid:
@@ -314,6 +589,22 @@ def disconnect():
             
     for room_id in rooms_to_remove:
         active_games.pop(room_id, None)
+        
+    ta_rooms_to_remove = []
+    for room_id, game in active_ta_games.items():
+        if any(p['id'] == request.sid for p in game['players']):
+            username = next((p['username'] for p in game['players'] if p['id'] == request.sid), None)
+            game['players'] = [p for p in game['players'] if p['id'] != request.sid]
+            if username:
+                game['scores'].pop(username, None)
+                socketio.emit('ta_player_left', { 'username': username }, room=room_id)
+            if not game['players']:
+                ta_rooms_to_remove.append(room_id)
+                
+    for room_id in ta_rooms_to_remove:
+        active_ta_games.pop(room_id, None)
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

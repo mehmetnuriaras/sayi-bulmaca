@@ -1,13 +1,19 @@
+import { state, socket } from './state.js';
+import { t, setLanguage } from './i18n.js';
+import { submitAuth, guestLogin, logout, toggleAuthMode } from './auth.js';
+import { startGameMode, sendSecretNumber, sendGuess, surrenderGame } from './game_core.js';
+import { playClick, toggleMute } from './sound.js';
+import { cancelSearch } from './socket_client.js';
 
-const modes = {
+export const modes = {
     'ai': { badge: 'mode_ai_badge', title: 'mode_ai_title', desc: 'mode_ai_desc', diff: 'mode_ai_diff', time: 'mode_ai_time' },
     'time-attack': { badge: 'mode_ta_badge', title: 'mode_ta_title', desc: 'mode_ta_desc', diff: 'mode_ta_diff', time: 'mode_ta_time' },
     'online-classic': { badge: 'mode_oc_badge', title: 'mode_oc_title', desc: 'mode_oc_desc', diff: 'mode_oc_diff', time: 'mode_oc_time' },
     'online-time': { badge: 'mode_ot_badge', title: 'mode_ot_title', desc: 'mode_ot_desc', diff: 'mode_ot_diff', time: 'mode_ot_time' }
 };
 
-function previewMode(modeKey, isHover = true) {
-    if (isHover && isLocked) return;
+export function previewMode(modeKey, isHover = true) {
+    if (isHover && state.isLocked) return;
     const data = modes[modeKey];
     if (!data) return;
     
@@ -20,31 +26,48 @@ function previewMode(modeKey, isHover = true) {
     document.querySelectorAll('.console-icon').forEach(icon => {
         icon.classList.remove('active');
     });
-    document.getElementById('icon-' + modeKey).classList.add('active');
+    const activeIcon = document.getElementById('icon-' + modeKey);
+    if (activeIcon) activeIcon.classList.add('active');
     
-    const playBtn = document.getElementById('btn-start-game');
+    // Show AI difficulty settings if mode is AI
+    const aiDiffWrapper = document.getElementById('ai-difficulty-wrapper');
+    if (aiDiffWrapper) {
+        aiDiffWrapper.style.display = modeKey === 'ai' ? 'block' : 'none';
+    }
+
+    // Show lobby size options if mode is Multiplayer Time Attack
+    const lobbySizeWrapper = document.getElementById('lobby-size-wrapper');
+    if (lobbySizeWrapper) {
+        lobbySizeWrapper.style.display = modeKey === 'online-time' ? 'block' : 'none';
+    }
+
+    const activeLobbiesWrapper = document.getElementById('active-lobbies-wrapper');
+    if (activeLobbiesWrapper) {
+        activeLobbiesWrapper.style.display = modeKey === 'online-time' ? 'block' : 'none';
+    }
     if (modeKey === 'online-time') {
-        playBtn.innerText = t("btn_soon");
-        playBtn.style.opacity = "0.5";
-        playBtn.style.pointerEvents = "none";
-    } else {
+        socket.emit('get_active_ta_lobbies');
+    }
+
+    const playBtn = document.getElementById('btn-start-game');
+    if (playBtn) {
         playBtn.innerText = t("btn_play");
         playBtn.style.opacity = "1";
         playBtn.style.pointerEvents = "auto";
     }
 }
 
-function selectMode(modeKey) {
-    selectedMode = modeKey;
-    isLocked = true;
+export function selectMode(modeKey) {
+    state.selectedMode = modeKey;
+    state.isLocked = true;
     previewMode(modeKey, false);
 }
 
-function resetPreview() {
-    previewMode(selectedMode, false);
+export function resetPreview() {
+    previewMode(state.selectedMode, false);
 }
 
-function addGameToHistory(mode, opponent, result, turns, detail = '') {
+export function addGameToHistory(mode, opponent, result, turns, detail = '') {
     let history = JSON.parse(localStorage.getItem('game_history') || '[]');
     const newRecord = {
         mode: mode, opponent: opponent, result: result, turns: turns, detail: detail,
@@ -56,7 +79,7 @@ function addGameToHistory(mode, opponent, result, turns, detail = '') {
     updateHistoryUI();
 }
 
-function updateHistoryUI() {
+export function updateHistoryUI() {
     const historyList = document.getElementById('history-list');
     if (!historyList) return;
     const history = JSON.parse(localStorage.getItem('game_history') || '[]');
@@ -72,7 +95,7 @@ function updateHistoryUI() {
         if (item.turns > 0) turnsText = ` | 📊 ${item.turns}` + t('moves_count');
         else if (item.detail) turnsText = ` | 📈 ${item.detail}`;
         
-        return `<div class="history-item">
+        return `<div class="history-item" style="margin-bottom: 8px;">
                     <div>
                         <span style="font-weight: 600; color: var(--text-color);">${item.mode}</span>
                         <span style="color: var(--text-dimmed); font-size: 12px; margin-left: 8px;">vs ${item.opponent}${turnsText}</span>
@@ -83,35 +106,39 @@ function updateHistoryUI() {
     }).join('');
 }
 
-function showScreen(screenId) {
+export function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(screenId).classList.add('active');
+    const screenEl = document.getElementById(screenId);
+    if (screenEl) screenEl.classList.add('active');
     
     if (screenId === 'menu-screen') {
-        if (soloTimer) { clearInterval(soloTimer); soloTimer = null; }
-        isAISolo = false;
-        isTimeAttack = false;
+        if (state.soloTimer) { clearInterval(state.soloTimer); state.soloTimer = null; }
+        state.isAISolo = false;
+        state.isTimeAttack = false;
         setTimeout(() => {
-            isLocked = false;
-            selectedMode = 'ai';
+            state.isLocked = false;
+            state.selectedMode = 'ai';
             previewMode('ai', false);
             updateHistoryUI();
         }, 50);
     }
 }
 
-function updateTurnUI(currentTurnSid) {
+export function updateTurnUI(currentTurnSid) {
     const turnBadge = document.getElementById('turn-badge');
     const actionArea = document.getElementById('guess-action-area');
+    const turnText = document.getElementById('turn-text');
+    if (!turnBadge || !actionArea || !turnText) return;
+
     if(currentTurnSid === socket.id) {
-        document.getElementById('turn-text').innerText = t('turn_you');
+        turnText.innerText = t('turn_you');
         turnBadge.style.backgroundColor = "var(--success-color)";
         turnBadge.style.color = "#0a0b10";
         turnBadge.classList.add('pulse-turn');
         actionArea.style.opacity = "1";
         actionArea.style.pointerEvents = "auto";
     } else {
-        document.getElementById('turn-text').innerText = t('turn_opp');
+        turnText.innerText = t('turn_opp');
         turnBadge.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
         turnBadge.style.color = "var(--text-dimmed)";
         turnBadge.classList.remove('pulse-turn');
@@ -120,9 +147,11 @@ function updateTurnUI(currentTurnSid) {
     }
 }
 
-function toggleHelperPanel() {
+export function toggleHelperPanel() {
     const content = document.getElementById('helper-content');
     const indicator = document.getElementById('toggle-indicator');
+    if (!content || !indicator) return;
+
     if (content.style.display === 'none') {
         content.style.display = 'block';
         indicator.innerText = '▲';
@@ -132,14 +161,16 @@ function toggleHelperPanel() {
     }
 }
 
-function initHelperPanel() {
+export function initHelperPanel() {
     const candidateGrid = document.getElementById('candidate-grid');
     const eliminatedGrid = document.getElementById('eliminated-grid');
+    if (!candidateGrid || !eliminatedGrid) return;
+
     candidateGrid.innerHTML = '';
     eliminatedGrid.innerHTML = '';
-    helperNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    state.helperNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-    helperNumbers.forEach(num => {
+    state.helperNumbers.forEach(num => {
         const box = document.createElement('div');
         box.classList.add('number-box', 'state-neutral');
         box.innerText = num;
@@ -149,6 +180,7 @@ function initHelperPanel() {
 
         let lastTap = 0;
         box.addEventListener('click', (e) => {
+            playClick();
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTap;
             if (tapLength < 280 && tapLength > 0) {
@@ -176,6 +208,7 @@ function initHelperPanel() {
         });
         box.addEventListener('dragend', () => { box.classList.remove('dragging'); });
 
+        // Touch event bindings for mobile devices
         let touchStartX = 0, touchStartY = 0, touchMoved = false;
         box.addEventListener('touchstart', (e) => {
             box.classList.add('dragging');
@@ -218,27 +251,228 @@ function initHelperPanel() {
         });
         candidateGrid.appendChild(box);
     });
+
+    // Dynamically insert Position Helper (Konum İpuçları)
+    let posBox = document.getElementById('position-helper-box');
+    if (!posBox) {
+        posBox = document.createElement('div');
+        posBox.id = 'position-helper-box';
+        posBox.className = 'panel-box';
+        posBox.style.marginTop = '15px';
+        posBox.innerHTML = `
+            <span class="panel-title" style="color: var(--accent-light);">Konum İpuçları</span>
+            <p class="panel-desc">Tıkla: Var (🟢) -> Yok (🔴) -> Nötr (⚪)</p>
+            <div id="position-grid" style="display: flex; gap: 8px; justify-content: space-between; margin-top: 8px;"></div>
+        `;
+        document.getElementById('helper-content').appendChild(posBox);
+    }
+    const grid = document.getElementById('position-grid');
+    if (grid) {
+        grid.innerHTML = '';
+        for (let c = 0; c < 4; c++) {
+            const col = document.createElement('div');
+            col.style.display = 'flex';
+            col.style.flexDirection = 'column';
+            col.style.gap = '4px';
+            col.style.width = '22%';
+            col.style.background = 'rgba(0,0,0,0.2)';
+            col.style.padding = '4px';
+            col.style.borderRadius = '8px';
+            
+            const label = document.createElement('span');
+            label.innerText = `${c+1}.H`;
+            label.style.fontSize = '10px';
+            label.style.fontWeight = 'bold';
+            label.style.color = 'var(--text-dimmed)';
+            label.style.textAlign = 'center';
+            label.style.marginBottom = '2px';
+            col.appendChild(label);
+
+            for (let d = 0; d < 10; d++) {
+                const item = document.createElement('div');
+                item.innerText = d;
+                item.style.fontSize = '11px';
+                item.style.fontWeight = 'bold';
+                item.style.padding = '3px 0';
+                item.style.textAlign = 'center';
+                item.style.borderRadius = '4px';
+                item.style.cursor = 'pointer';
+                item.style.background = 'rgba(255, 255, 255, 0.02)';
+                item.style.border = '1px solid rgba(255, 255, 255, 0.05)';
+                item.dataset.state = 'neutral';
+
+                item.addEventListener('click', () => {
+                    playClick();
+                    if (item.dataset.state === 'neutral') {
+                        item.dataset.state = 'include';
+                        item.style.background = 'rgba(16, 185, 129, 0.25)';
+                        item.style.color = 'var(--success-color)';
+                        item.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    } else if (item.dataset.state === 'include') {
+                        item.dataset.state = 'exclude';
+                        item.style.background = 'rgba(244, 63, 94, 0.2)';
+                        item.style.color = 'var(--error-color)';
+                        item.style.borderColor = 'rgba(244, 63, 94, 0.4)';
+                        item.style.textDecoration = 'line-through';
+                    } else {
+                        item.dataset.state = 'neutral';
+                        item.style.background = 'rgba(255, 255, 255, 0.02)';
+                        item.style.color = 'var(--text-color)';
+                        item.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        item.style.textDecoration = 'none';
+                    }
+                });
+                col.appendChild(item);
+            }
+            grid.appendChild(col);
+        }
+    }
 }
 
-function moveToCandidate(box) {
+export function moveToCandidate(box) {
     box.dataset.state = 'neutral';
     box.className = 'number-box state-neutral';
-    document.getElementById('candidate-grid').appendChild(box);
+    const grid = document.getElementById('candidate-grid');
+    if (grid) grid.appendChild(box);
     saveNumbersOrder();
-}
-function moveToEliminated(box) {
-    box.dataset.state = 'exclude';
-    box.className = 'number-box state-exclude';
-    document.getElementById('eliminated-grid').appendChild(box);
-    saveNumbersOrder();
-}
-function saveNumbersOrder() {
-    const candidateBoxes = [...document.getElementById('candidate-grid').querySelectorAll('.number-box')];
-    const eliminatedBoxes = [...document.getElementById('eliminated-grid').querySelectorAll('.number-box')];
-    helperNumbers = [...candidateBoxes, ...eliminatedBoxes].map(box => box.dataset.number);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+export function moveToEliminated(box) {
+    box.dataset.state = 'exclude';
+    box.className = 'number-box state-exclude';
+    const grid = document.getElementById('eliminated-grid');
+    if (grid) grid.appendChild(box);
+    saveNumbersOrder();
+}
+
+export function saveNumbersOrder() {
+    const cand = document.getElementById('candidate-grid');
+    const elim = document.getElementById('eliminated-grid');
+    if (!cand || !elim) return;
+    const candidateBoxes = [...cand.querySelectorAll('.number-box')];
+    const eliminatedBoxes = [...elim.querySelectorAll('.number-box')];
+    state.helperNumbers = [...candidateBoxes, ...eliminatedBoxes].map(box => box.dataset.number);
+}
+
+// Bind all page events programmatically (eliminating inline HTML event handlers)
+export function bindEvents() {
+    // Language Select
+    const langSelect = document.getElementById('lang-select');
+    if (langSelect) {
+        langSelect.addEventListener('change', (e) => {
+            playClick();
+            setLanguage(e.target.value);
+        });
+    }
+
+    // Auth screen buttons
+    const btnPrimary = document.getElementById('btn-primary');
+    if (btnPrimary) btnPrimary.addEventListener('click', () => { playClick(); submitAuth(); });
+    
+    const btnGuest = document.querySelector('.btn-guest');
+    if (btnGuest) btnGuest.addEventListener('click', () => { playClick(); guestLogin(); });
+    
+    const switchTxt = document.getElementById('switch-text');
+    if (switchTxt) switchTxt.addEventListener('click', () => { playClick(); toggleAuthMode(); });
+
+    const btnLogout = document.querySelector('.btn-logout');
+    if (btnLogout) btnLogout.addEventListener('click', () => { playClick(); logout(); });
+
+    // AI Difficulty select listener
+    const aiDifficulty = document.getElementById('ai-difficulty');
+    if (aiDifficulty) {
+        aiDifficulty.addEventListener('change', (e) => {
+            playClick();
+            state.aiDifficulty = e.target.value;
+        });
+    }
+
+    // Multiplayer Time Attack Lobby size listener
+    const lobbySizeSelect = document.getElementById('ta-lobby-size');
+    if (lobbySizeSelect) {
+        lobbySizeSelect.addEventListener('change', (e) => {
+            playClick();
+            state.taLobbySize = parseInt(e.target.value, 10);
+        });
+    }
+
+    // Play Mode
+    const btnStartGame = document.getElementById('btn-start-game');
+    if (btnStartGame) btnStartGame.addEventListener('click', () => { playClick(); startGameMode(); });
+
+    // Cancel Match Search
+    const btnCancelSearch = document.getElementById('btn-cancel-search');
+    if (btnCancelSearch) btnCancelSearch.addEventListener('click', () => { playClick(); cancelSearch(); });
+
+    // Setup Confirm Number
+    const btnSetNumber = document.getElementById('btn-set-number');
+    if (btnSetNumber) btnSetNumber.addEventListener('click', () => { playClick(); sendSecretNumber(); });
+
+    // Surrender Match
+    const guessActionArea = document.getElementById('guess-action-area');
+    if (guessActionArea) {
+        const surrenderBtn = guessActionArea.querySelector('button[onclick*="surrenderGame"]');
+        if (surrenderBtn) {
+            // Replace with addEventListener after removing inline
+            surrenderBtn.removeAttribute('onclick');
+            surrenderBtn.addEventListener('click', () => { playClick(); surrenderGame(); });
+        }
+        
+        const guessBtn = guessActionArea.querySelector('button[onclick*="sendGuess"]');
+        if (guessBtn) {
+            guessBtn.removeAttribute('onclick');
+            guessBtn.addEventListener('click', () => { playClick(); sendGuess(); });
+        }
+    }
+
+    // Helper Panel header click
+    const helperHeader = document.querySelector('.helper-header');
+    if (helperHeader) {
+        helperHeader.removeAttribute('onclick');
+        helperHeader.addEventListener('click', () => { playClick(); toggleHelperPanel(); });
+    }
+
+    // Mute Button listener
+    const muteBtn = document.getElementById('btn-mute');
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            toggleMute();
+        });
+    }
+
+    // Console D-Pad selection elements
+    const dpadSelectors = [
+        { sel: '.console-touch .t1', icon: '#icon-ai', mode: 'ai' },
+        { sel: '.console-touch .t2', icon: '#icon-online-time', mode: 'online-time' },
+        { sel: '.console-touch .t3', icon: '#icon-time-attack', mode: 'time-attack' },
+        { sel: '.console-touch .t4', icon: '#icon-online-classic', mode: 'online-classic' }
+    ];
+
+    dpadSelectors.forEach(item => {
+        const tEl = document.querySelector(item.sel);
+        if (tEl) {
+            tEl.removeAttribute('onmouseenter');
+            tEl.removeAttribute('onclick');
+            tEl.addEventListener('mouseenter', () => previewMode(item.mode));
+            tEl.addEventListener('click', () => { playClick(); selectMode(item.mode); });
+        }
+
+        const iconEl = document.querySelector(item.icon);
+        if (iconEl) {
+            iconEl.removeAttribute('onclick');
+            iconEl.removeAttribute('onmouseenter');
+            iconEl.addEventListener('mouseenter', () => previewMode(item.mode));
+            iconEl.addEventListener('click', () => { playClick(); selectMode(item.mode); });
+        }
+    });
+
+    const consoleContainer = document.querySelector('.console-container');
+    if (consoleContainer) {
+        consoleContainer.removeAttribute('onmouseleave');
+        consoleContainer.addEventListener('mouseleave', () => resetPreview());
+    }
+
+    // Scratchpad Drag and Drop Bindings
     document.querySelectorAll('.dropzone').forEach(grid => {
         grid.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -271,4 +505,27 @@ document.addEventListener('DOMContentLoaded', () => {
             saveNumbersOrder();
         });
     });
-});
+
+    // Enter key listener for secret-input
+    const secretInput = document.getElementById('secret-input');
+    if (secretInput) {
+        secretInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                playClick();
+                sendSecretNumber();
+            }
+        });
+    }
+
+    // Enter key listener for guess-input
+    const guessInput = document.getElementById('guess-input');
+    if (guessInput) {
+        guessInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                playClick();
+                sendGuess();
+            }
+        });
+    }
+}
+
