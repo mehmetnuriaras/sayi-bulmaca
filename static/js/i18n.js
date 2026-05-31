@@ -318,3 +318,7 @@ const translations = {
                 } else {
                     currentLang = 'en'; // default to english
                 }
+            }
+            document.getElementById('lang-select').value = currentLang;
+            setLanguage(currentLang);
+        }
