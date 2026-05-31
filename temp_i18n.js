@@ -262,7 +262,7 @@ const translations = {
             }
         };
 
-
+        let currentLang = 'en';
 
         function t(key, params = {}) {
             let str = translations[currentLang][key] || key;
