@@ -40,87 +40,206 @@ def sayi_gecerli_mi(sayi):
     if len(set(sayi)) != 4: return False
     return True
 
+def db_register_user(username, password):
+    """Kullanıcıyı SQLite veritabanına kaydeder."""
+    try:
+        conn = sqlite3.connect('oyun.db')
+        cursor = conn.cursor()
+        hashed_password = generate_password_hash(password)
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+        conn.commit()
+        conn.close()
+        return True, "Kayıt başarıyla oluşturuldu."
+    except sqlite3.IntegrityError:
+        return False, "Bu kullanıcı adı zaten alınmış."
+    except Exception as e:
+        return False, f"Veritabanı hatası: {str(e)}"
+
+def db_login_user(username, password):
+    """Kullanıcı bilgilerini veritabanından doğrular."""
+    try:
+        conn = sqlite3.connect('oyun.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        conn.close()
+        if row and check_password_hash(row[0], password):
+            return True, "Giriş başarılı."
+        return False, "Kullanıcı adı veya şifre hatalı."
+    except Exception as e:
+        return False, f"Veritabanı hatası: {str(e)}"
+
 @socketio.on('connect')
 def baglan():
     print(f"[BAĞLANTI] {request.sid}")
 
-@socketio.on('misafir_girisi')
-def misafir_girisi():
-    misafir_ad = f"Misafir_{random.randint(1000, 9999)}"
-    emit('giris_basarili', {'username': misafir_ad})
+@socketio.on('register')
+def register(data):
+    """Kullanıcı kayıt talebini karşılar."""
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        emit('auth_response', {'success': False, 'message': 'Kullanıcı adı ve şifre gereklidir.'})
+        return
+    success, message = db_register_user(username, password)
+    emit('auth_response', {'success': success, 'message': message})
 
-@socketio.on('oyun_bul')
-def oyun_bul(data):
+@socketio.on('login')
+def login(data):
+    """Kullanıcı giriş talebini karşılar."""
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        emit('login_response', {'success': False, 'message': 'Kullanıcı adı ve şifre gereklidir.'})
+        return
+    success, message = db_login_user(username, password)
+    emit('login_response', {'success': success, 'username': username, 'message': message})
+
+@socketio.on('guest_login')
+def guest_login():
+    """Misafir girişi talebini karşılar ve geçici isim üretir."""
+    misafir_ad = f"Misafir_{random.randint(1000, 9999)}"
+    emit('login_response', {'success': True, 'username': misafir_ad, 'message': 'Misafir girişi başarılı.'})
+
+@socketio.on('find_match')
+def find_match(data):
+    """Eşleşme arayan oyuncuyu sıraya ekler ve 2 kişi olunca odayı kurar."""
     global waiting_players
     player = {'id': request.sid, 'username': data['username']}
     
+    # Zaten sırada beklemede mi kontrol et
     if any(p['id'] == request.sid for p in waiting_players):
         return
 
     waiting_players.append(player)
+    print(f"[EŞLEŞME HAVUZU] {player['username']} ({request.sid}) sıraya girdi.")
     
     if len(waiting_players) >= 2:
         p1 = waiting_players.pop(0)
         p2 = waiting_players.pop(0)
-        room = f"room_{p1['id']}"
-        join_room(room, sid=p1['id'])
-        join_room(room, sid=p2['id'])
+        room_id = f"room_{p1['id']}"
+        join_room(room_id, sid=p1['id'])
+        join_room(room_id, sid=p2['id'])
         
-        active_games[room] = {
+        active_games[room_id] = {
             'p1': p1, 'p2': p2,
             'p1_secret': None, 'p2_secret': None,
-            'turn': p1['id'], 'history': []
+            'turn': p1['id'], # İlk sıra p1'de
+            'history': []
         }
         
-        emit('match_found', {'room': room, 'opp': p2['username']}, room=p1['id'])
-        emit('match_found', {'room': room, 'opp': p1['username']}, room=p2['id'])
+        print(f"[ODA OLUŞTURULDU] {room_id} -> {p1['username']} vs {p2['username']}")
+        
+        emit('match_found', {'room_id': room_id, 'opponent': p2['username']}, room=p1['id'])
+        emit('match_found', {'room_id': room_id, 'opponent': p1['username']}, room=p2['id'])
 
-@socketio.on('sayi_kilitle')
-def sayi_kilitle(data):
-    room = data['room']
-    sayi = data['sayi']
+@socketio.on('set_number')
+def set_number(data):
+    """Oyuncunun kendi tahmin edilecek gizli sayısını kilitlemesini sağlar."""
+    room_id = data.get('room_id')
+    number = data.get('number')
     
-    if not sayi_gecerli_mi(sayi):
-        emit('hata', {'msg': 'Geçersiz sayı!'})
+    if not room_id or room_id not in active_games:
+        emit('game_error', {'message': 'Geçersiz oyun odası!'})
         return
 
-    game = active_games[room]
-    if request.sid == game['p1']['id']: game['p1_secret'] = sayi
-    else: game['p2_secret'] = sayi
-    
-    if game['p1_secret'] and game['p2_secret']:
-        emit('oyun_basladi', {'turn': game['p1']['username']}, room=room)
+    if not sayi_gecerli_mi(number):
+        emit('game_error', {'message': 'Geçersiz sayı! Sayı 4 haneli, rakamları farklı olmalı ve 0 ile başlamamalıdır.'})
+        return
 
-@socketio.on('tahmin_gonder')
-def tahmin_gonder(data):
-    room = data['room']
-    tahmin = data['tahmin']
-    game = active_games[room]
+    game = active_games[room_id]
+    if request.sid == game['p1']['id']:
+        game['p1_secret'] = number
+        print(f"[{room_id}] {game['p1']['username']} sayısını kilitledi.")
+    elif request.sid == game['p2']['id']:
+        game['p2_secret'] = number
+        print(f"[{room_id}] {game['p2']['username']} sayısını kilitledi.")
+    
+    # İki oyuncu da sayı belirledi mi?
+    if game['p1_secret'] and game['p2_secret']:
+        print(f"[{room_id}] Oyun başladı! İlk sıra: {game['p1']['username']}")
+        emit('game_start_turns', {'current_turn': game['p1']['id']}, room=room_id)
+
+@socketio.on('make_guess')
+def make_guess(data):
+    """Yapılan tahmini değerlendirir, ipuçlarını hesaplar (+ / -) ve sırayı aktarır."""
+    room_id = data.get('room_id')
+    guess = data.get('guess')
+    
+    if not room_id or room_id not in active_games:
+        emit('game_error', {'message': 'Oyun odası bulunamadı!'})
+        return
+        
+    game = active_games[room_id]
     
     # Sıra kontrolü
-    if request.sid != game['turn']: return
+    if request.sid != game['turn']:
+        emit('game_error', {'message': 'Sıra sizde değil!'})
+        return
+
+    if not sayi_gecerli_mi(guess):
+        emit('game_error', {'message': 'Geçersiz tahmin!'})
+        return
     
-    target = game['p2_secret'] if request.sid == game['p1']['id'] else game['p1_secret']
+    # Hangi oyuncunun tahmin ettiğine göre hedef sayıyı belirle
+    is_p1 = (request.sid == game['p1']['id'])
+    player_username = game['p1']['username'] if is_p1 else game['p2']['username']
+    target = game['p2_secret'] if is_p1 else game['p1_secret']
     
-    # + / - Hesaplama Mantığı [10]
-    arti, eksi = 0, 0
+    # + / - Hesaplama Mantığı (Bulls and Cows)
+    plus, minus = 0, 0
     for i in range(4):
-        if tahmin[i] == target[i]: arti += 1
-        elif tahmin[i] in target: eksi += 1
+        if guess[i] == target[i]:
+            plus += 1
+        elif guess[i] in target:
+            minus += 1
     
-    sonuc = f"+{arti} -{eksi}" if arti > 0 or eksi > 0 else "0"
-    if arti == 4: sonuc = "KAZANDIN!"
+    print(f"[{room_id}] {player_username} tahmini: {guess} -> +{plus} -{minus}")
     
-    # Sıra değiştir
-    game['turn'] = game['p2']['id'] if request.sid == game['p1']['id'] else game['p1']['id']
-    next_user = game['p2']['username'] if request.sid == game['p1']['id'] else game['p1']['username']
+    # Sonucu odaya duyur
+    emit('guess_result', {
+        'player_sid': request.sid,
+        'guess': guess,
+        'plus': plus,
+        'minus': minus
+    }, room=room_id)
     
-    emit('tahmin_sonuc', {
-        'player': data['username'],
-        'tahmin': tahmin,
-        'sonuc': sonuc,
-        'next_turn': next_user
-    }, room=room)
+    # Kazanma durumu
+    if plus == 4:
+        print(f"[{room_id}] Oyun bitti! Kazanan: {player_username}")
+        emit('game_over', {
+            'winner_sid': request.sid,
+            'message': f"{player_username} sayıyı buldu ({guess}) ve oyunu kazandı!"
+        }, room=room_id)
+        active_games.pop(room_id, None)
+        return
+        
+    # Sırayı değiştir
+    next_turn_sid = game['p2']['id'] if is_p1 else game['p1']['id']
+    game['turn'] = next_turn_sid
+    
+    emit('turn_update', {'current_turn': next_turn_sid}, room=room_id)
+
+@socketio.on('disconnect')
+def disconnect():
+    """Bağlantısı kopan oyuncunun odasını kapatır ve sıradan çıkarır."""
+    global waiting_players
+    print(f"[BAĞLANTI KOPMASI] {request.sid}")
+    
+    # Bekleyen oyuncular arasındaysa temizle
+    waiting_players = [p for p in waiting_players if p['id'] != request.sid]
+    
+    # Aktif bir oyundaysa oyunu bitir ve rakibe haber ver
+    rooms_to_remove = []
+    for room_id, game in active_games.items():
+        if game['p1']['id'] == request.sid or game['p2']['id'] == request.sid:
+            opponent = game['p2'] if game['p1']['id'] == request.sid else game['p1']
+            print(f"[{room_id}] {request.sid} ayrıldı. Rakibi {opponent['username']} bilgilendiriliyor.")
+            emit('opponent_left', {'message': 'Rakibiniz oyundan ayrıldı! Menüye yönlendiriliyorsunuz.'}, room=opponent['id'])
+            rooms_to_remove.append(room_id)
+            
+    for room_id in rooms_to_remove:
+        active_games.pop(room_id, None)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

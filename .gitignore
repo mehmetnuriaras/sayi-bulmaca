@@ -1,0 +1,18 @@
+# Python sanal ortamlar (Virtual Environments)
+.venv/
+oyun_ortami/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite Veritabani Dosyalari (Lokal veri ve guvenlik icin git'e girmemeli)
+*.db
+*.db-journal
+*.db-wal
+
+# Isletim Sistemi ve IDE Dosyalari
+.DS_Store
+._*
+.vscode/
+.idea/
